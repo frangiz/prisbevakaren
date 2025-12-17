@@ -1,5 +1,6 @@
 """Flask application for URL management."""
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
@@ -59,8 +60,6 @@ def create_app() -> Flask:
                 URL(id=u.id, url=url_input) if u.id == url_id else u for u in urls
             ]
             # Save the updated list
-            import json
-
             with open(db_path, "w") as f:
                 json.dump(
                     [{"id": u.id, "url": u.url} for u in updated_urls], f, indent=2
@@ -77,8 +76,6 @@ def create_app() -> Flask:
         updated_urls = [u for u in urls if u.id != url_id]
         if len(updated_urls) < len(urls):
             # Save the updated list
-            import json
-
             with open(db_path, "w") as f:
                 json.dump(
                     [{"id": u.id, "url": u.url} for u in updated_urls], f, indent=2
