@@ -210,3 +210,6 @@ __marimo__/
 .ruff_cache/
 .DS_Store
 .vscode/
+
+# URL Manager database
+urls.json
