@@ -98,33 +98,37 @@ def create_app() -> Flask:
         group_name = request.form.get("group_name", "").strip()
         if not group_name:
             flash("Group name cannot be empty!", FLASH_ERROR)
-        else:
-            groups_db = get_groups_db()
-            existing_group = groups_db.get(group_id)
-            if not existing_group:
-                flash("Group not found!", FLASH_ERROR)
-            elif is_duplicate_group_name(group_name, exclude_id=group_id):
-                flash("Another group with this name already exists!", FLASH_ERROR)
-            else:
-                updated_group = Group(id=group_id, name=group_name)
-                groups_db.update(updated_group)
-                flash("Group updated successfully!", FLASH_SUCCESS)
+            return redirect(url_for("index"))
+
+        groups_db = get_groups_db()
+        existing_group = groups_db.get(group_id)
+        if not existing_group:
+            flash("Group not found!", FLASH_ERROR)
+            return redirect(url_for("index"))
+
+        if is_duplicate_group_name(group_name, exclude_id=group_id):
+            flash("Another group with this name already exists!", FLASH_ERROR)
+            return redirect(url_for("index"))
+
+        updated_group = Group(id=group_id, name=group_name)
+        groups_db.update(updated_group)
+        flash("Group updated successfully!", FLASH_SUCCESS)
         return redirect(url_for("index"))
 
     @app.route("/group/delete/<uuid:group_id>", methods=["POST"])
     def delete_group(group_id: uuid.UUID) -> Union[Response, WerkzeugResponse]:
         """Delete a group (only if it has no URLs)."""
         urls_db = get_urls_db()
-        # Check if group has any URLs
         urls_in_group = urls_db.find(group_id=group_id)
         if urls_in_group:
             flash("Cannot delete group with URLs! Remove all URLs first.", FLASH_ERROR)
+            return redirect(url_for("index"))
+
+        groups_db = get_groups_db()
+        if groups_db.remove(group_id):
+            flash("Group deleted successfully!", FLASH_SUCCESS)
         else:
-            groups_db = get_groups_db()
-            if groups_db.remove(group_id):
-                flash("Group deleted successfully!", FLASH_SUCCESS)
-            else:
-                flash("Group not found!", FLASH_ERROR)
+            flash("Group not found!", FLASH_ERROR)
         return redirect(url_for("index"))
 
     # URL routes
@@ -136,28 +140,31 @@ def create_app() -> Flask:
 
         if not url_input:
             flash("URL cannot be empty!", FLASH_ERROR)
-        elif not group_id_str:
-            flash("Please select a group!", FLASH_ERROR)
-        else:
-            try:
-                group_id = uuid.UUID(group_id_str)
-            except ValueError:
-                flash("Invalid group ID!", FLASH_ERROR)
-                return redirect(url_for("index"))
+            return redirect(url_for("index"))
 
-            groups_db = get_groups_db()
-            # Verify group exists
-            if not groups_db.get(group_id):
-                flash("Group does not exist!", FLASH_ERROR)
-            else:
-                new_url = URL(
-                    id=uuid.uuid4(),
-                    url=url_input,
-                    group_id=group_id,
-                )
-                urls_db = get_urls_db()
-                urls_db.add(new_url)
-                flash("URL added successfully!", FLASH_SUCCESS)
+        if not group_id_str:
+            flash("Please select a group!", FLASH_ERROR)
+            return redirect(url_for("index"))
+
+        try:
+            group_id = uuid.UUID(group_id_str)
+        except ValueError:
+            flash("Invalid group ID!", FLASH_ERROR)
+            return redirect(url_for("index"))
+
+        groups_db = get_groups_db()
+        if not groups_db.get(group_id):
+            flash("Group does not exist!", FLASH_ERROR)
+            return redirect(url_for("index"))
+
+        new_url = URL(
+            id=uuid.uuid4(),
+            url=url_input,
+            group_id=group_id,
+        )
+        urls_db = get_urls_db()
+        urls_db.add(new_url)
+        flash("URL added successfully!", FLASH_SUCCESS)
         return redirect(url_for("index"))
 
     @app.route("/url/update/<uuid:url_id>", methods=["POST"])
@@ -166,21 +173,23 @@ def create_app() -> Flask:
         url_input = request.form.get("url", "").strip()
         if not url_input:
             flash("URL cannot be empty!", FLASH_ERROR)
-        else:
-            urls_db = get_urls_db()
-            existing_url = urls_db.get(url_id)
-            if not existing_url:
-                flash("URL not found!", FLASH_ERROR)
-            else:
-                updated_url = URL(
-                    id=url_id,
-                    url=url_input,
-                    group_id=existing_url.group_id,
-                    current_price=existing_url.current_price,
-                    last_price_change=existing_url.last_price_change,
-                )
-                urls_db.update(updated_url)
-                flash("URL updated successfully!", FLASH_SUCCESS)
+            return redirect(url_for("index"))
+
+        urls_db = get_urls_db()
+        existing_url = urls_db.get(url_id)
+        if not existing_url:
+            flash("URL not found!", FLASH_ERROR)
+            return redirect(url_for("index"))
+
+        updated_url = URL(
+            id=url_id,
+            url=url_input,
+            group_id=existing_url.group_id,
+            current_price=existing_url.current_price,
+            last_price_change=existing_url.last_price_change,
+        )
+        urls_db.update(updated_url)
+        flash("URL updated successfully!", FLASH_SUCCESS)
         return redirect(url_for("index"))
 
     @app.route("/url/delete/<uuid:url_id>", methods=["POST"])
