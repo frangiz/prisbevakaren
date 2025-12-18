@@ -217,7 +217,7 @@ def test_url_without_price_fields(client: FlaskClient) -> None:
 
     # Get the page
     response = client.get("/")
-    
+
     # URL should be displayed
     assert b"https://example.com" in response.data
     # But price fields should not be shown since they're None
