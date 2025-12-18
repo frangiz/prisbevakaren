@@ -342,14 +342,21 @@ class PriceScraper:
                     # If we found at least 2 numbers, try to combine them
                     if len(numbers) >= 2:
                         try:
-                            # First number is whole part, second is decimal
-                            whole_part = numbers[0]
-                            decimal_part = numbers[1]
-                            price = float(f"{whole_part}.{decimal_part}")
-
-                            # Sanity check: reasonable price range
-                            if 0 < price < 10000:
-                                return price
+                            # Try different combinations to find a reasonable price
+                            # Common pattern: ignore leading zeros or small numbers
+                            for i in range(len(numbers) - 1):
+                                whole_part = numbers[i]
+                                decimal_part = numbers[i + 1]
+                                
+                                # Skip if whole part is "0" or "00" (likely not the actual price)
+                                if whole_part in ["0", "00"]:
+                                    continue
+                                    
+                                price = float(f"{whole_part}.{decimal_part}")
+                                
+                                # Sanity check: reasonable price range (at least 1 kr)
+                                if 1 <= price < 10000:
+                                    return price
                         except (ValueError, IndexError):
                             pass
 

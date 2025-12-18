@@ -42,13 +42,13 @@ def update_all_prices() -> None:
             
             if price_changed:
                 print(f"  📈 Price changed: {url_obj.current_price} → {new_price}")
+                url_obj.current_price = new_price
                 url_obj.last_price_change = datetime.now(timezone.utc).isoformat()
-            
-            # Update the URL object
-            url_obj.current_price = new_price
-            urls_db.update(url_obj)
-            updated += 1
-            print(f"  ✅ Updated in database")
+                urls_db.update(url_obj)
+                updated += 1
+                print(f"  ✅ Updated in database")
+            else:
+                print(f"  ℹ️  Price unchanged: {new_price} kr")
     
     print(f"\n{'='*60}")
     print(f"Price update job completed!")

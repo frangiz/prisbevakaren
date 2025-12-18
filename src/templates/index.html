@@ -184,6 +184,15 @@
             color: #333;
             font-size: 15px;
         }
+        .url-link {
+            color: #667eea;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .url-link:hover {
+            color: #5568d3;
+            text-decoration: underline;
+        }
         .url-actions {
             display: flex;
             gap: 5px;
@@ -296,14 +305,14 @@
                                         <div class="url-display">
                                             <div class="url-content">
                                                 <div style="flex: 1;">
-                                                    <span class="url-text">{{ url.url }}</span>
+                                                    <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-text url-link">{{ url.url }}</a>
                                                     {% if url.current_price is not none or url.last_price_change is not none %}
                                                     <div style="margin-top: 8px; font-size: 13px; color: #666;">
                                                         {% if url.current_price is not none %}
                                                         <span style="margin-right: 15px;">💰 Current Price: <strong>{{ "%.2f"|format(url.current_price) }} kr</strong></span>
                                                         {% endif %}
                                                         {% if url.last_price_change is not none %}
-                                                        <span>📅 Last Change: {{ url.last_price_change }}</span>
+                                                        <span title="{{ url.last_price_change|format_timestamp_absolute }}">📅 Last Change: {{ url.last_price_change|format_timestamp }}</span>
                                                         {% endif %}
                                                     </div>
                                                     {% endif %}

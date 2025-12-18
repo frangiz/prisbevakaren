@@ -4,6 +4,7 @@ import os
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
 
@@ -45,6 +46,43 @@ def create_app() -> Flask:
         "SECRET_KEY", "dev-secret-key-change-in-production"
     )
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max request size
+
+    @app.template_filter("format_timestamp")
+    def format_timestamp(iso_string: Optional[str]) -> str:
+        """Convert ISO format timestamp to relative time format."""
+        if not iso_string:
+            return ""
+        try:
+            dt = datetime.fromisoformat(iso_string)
+            now = datetime.now(dt.tzinfo)  # Use same timezone as the stored datetime
+            diff = now - dt
+            
+            days = diff.days
+            
+            if days == 0:
+                return "today"
+            elif days == 1:
+                return "1 day ago"
+            elif days < 30:
+                return f"{days} days ago"
+            elif days < 60:
+                return "1 month ago"
+            else:
+                months = days // 30
+                return f"{months} months ago"
+        except (ValueError, AttributeError):
+            return iso_string  # Return original if parsing fails
+
+    @app.template_filter("format_timestamp_absolute")
+    def format_timestamp_absolute(iso_string: Optional[str]) -> str:
+        """Convert ISO format timestamp to absolute readable format for tooltips."""
+        if not iso_string:
+            return ""
+        try:
+            dt = datetime.fromisoformat(iso_string)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, AttributeError):
+            return iso_string  # Return original if parsing fails
 
     def get_groups_db() -> IndexedJsonDB[Group, uuid.UUID]:
         """Get a fresh groups database instance."""
