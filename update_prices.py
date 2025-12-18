@@ -1,5 +1,6 @@
 """Cron job script to update prices for all URLs in the database."""
 
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,7 +15,7 @@ def update_all_prices() -> None:
     print(f"[{datetime.now(timezone.utc).isoformat()}] Starting price update job...")
     
     # Initialize database and scraper (using context manager for cleanup)
-    urls_db = IndexedJsonDB(URL, URLS_DB_PATH, primary_key="id")
+    urls_db: IndexedJsonDB[URL, uuid.UUID] = IndexedJsonDB(URL, URLS_DB_PATH, primary_key="id")
     
     with PriceScraper() as scraper:
         urls = urls_db.all()
