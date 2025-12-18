@@ -49,6 +49,18 @@ def create_app() -> Flask:
         """Get a fresh URLs database instance."""
         return IndexedJsonDB(URL, urls_db_path, primary_key="id")
 
+    def is_duplicate_group_name(
+        name: str, exclude_id: Optional[uuid.UUID] = None
+    ) -> bool:
+        """Check if a group name already exists, optionally excluding a specific group ID."""
+        groups_db = get_groups_db()
+        existing = groups_db.find(name=name)
+        if not existing:
+            return False
+        if exclude_id is None:
+            return True
+        return any(g.id != exclude_id for g in existing)
+
     @app.route("/")
     def index() -> str:
         """Display the list of groups and URLs."""
@@ -69,16 +81,13 @@ def create_app() -> Flask:
         group_name = request.form.get("group_name", "").strip()
         if not group_name:
             flash("Group name cannot be empty!", "error")
+        elif is_duplicate_group_name(group_name):
+            flash("Group with this name already exists!", "error")
         else:
+            new_group = Group(id=uuid.uuid4(), name=group_name)
             groups_db = get_groups_db()
-            # Check for duplicate name
-            existing = groups_db.find(name=group_name)
-            if existing:
-                flash("Group with this name already exists!", "error")
-            else:
-                new_group = Group(id=uuid.uuid4(), name=group_name)
-                groups_db.add(new_group)
-                flash("Group added successfully!", "success")
+            groups_db.add(new_group)
+            flash("Group added successfully!", "success")
         return redirect(url_for("index"))
 
     @app.route("/group/update/<uuid:group_id>", methods=["POST"])
@@ -92,17 +101,12 @@ def create_app() -> Flask:
             existing_group = groups_db.get(group_id)
             if not existing_group:
                 flash("Group not found!", "error")
+            elif is_duplicate_group_name(group_name, exclude_id=group_id):
+                flash("Another group with this name already exists!", "error")
             else:
-                # Check for duplicate name (excluding current group)
-                duplicates = [
-                    g for g in groups_db.find(name=group_name) if g.id != group_id
-                ]
-                if duplicates:
-                    flash("Another group with this name already exists!", "error")
-                else:
-                    updated_group = Group(id=group_id, name=group_name)
-                    groups_db.update(updated_group)
-                    flash("Group updated successfully!", "success")
+                updated_group = Group(id=group_id, name=group_name)
+                groups_db.update(updated_group)
+                flash("Group updated successfully!", "success")
         return redirect(url_for("index"))
 
     @app.route("/group/delete/<uuid:group_id>", methods=["POST"])
