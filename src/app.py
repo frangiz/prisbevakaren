@@ -78,6 +78,14 @@ def create_app() -> Flask:
             return False
         return True
 
+    def parse_uuid(uuid_str: str, field_name: str = "ID") -> Optional[uuid.UUID]:
+        """Parse UUID from string. Flash error and return None if invalid."""
+        try:
+            return uuid.UUID(uuid_str)
+        except ValueError:
+            flash(f"Invalid {field_name}!", FLASH_ERROR)
+            return None
+
     @app.route("/")
     def index() -> str:
         """Display the list of groups and URLs."""
@@ -161,10 +169,8 @@ def create_app() -> Flask:
             flash("Please select a group!", FLASH_ERROR)
             return redirect(url_for("index"))
 
-        try:
-            group_id = uuid.UUID(group_id_str)
-        except ValueError:
-            flash("Invalid group ID!", FLASH_ERROR)
+        group_id = parse_uuid(group_id_str, "group ID")
+        if group_id is None:
             return redirect(url_for("index"))
 
         if not validate_group_exists(group_id):
