@@ -347,13 +347,13 @@ class PriceScraper:
                             for i in range(len(numbers) - 1):
                                 whole_part = numbers[i]
                                 decimal_part = numbers[i + 1]
-                                
+
                                 # Skip if whole part is "0" or "00" (likely not the actual price)
                                 if whole_part in ["0", "00"]:
                                     continue
-                                    
+
                                 price = float(f"{whole_part}.{decimal_part}")
-                                
+
                                 # Sanity check: reasonable price range (at least 1 kr)
                                 if 1 <= price < 10000:
                                     return price

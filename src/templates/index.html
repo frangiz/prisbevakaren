@@ -356,7 +356,17 @@
                                                     {% if url.current_price is not none or url.last_price_change is not none %}
                                                     <div style="margin-top: 8px; font-size: 13px; color: #666;">
                                                         {% if url.current_price is not none %}
-                                                        <span style="margin-right: 15px;">Current Price: <strong>{{ "%.2f"|format(url.current_price) }} kr</strong></span>
+                                                        <span style="margin-right: 15px;">
+                                                            Current Price: <strong>{{ "%.2f"|format(url.current_price) }} kr</strong>
+                                                            {% if url.previous_price is not none and url.previous_price != url.current_price %}
+                                                                {% set diff = url.current_price - url.previous_price %}
+                                                                {% if diff > 0 %}
+                                                                    <span style="color: #c82333; font-size: 12px;"> (+{{ "%.2f"|format(diff) }} kr)</span>
+                                                                {% else %}
+                                                                    <span style="color: #218838; font-size: 12px;"> ({{ "%.2f"|format(diff) }} kr)</span>
+                                                                {% endif %}
+                                                            {% endif %}
+                                                        </span>
                                                         {% endif %}
                                                         {% if url.last_price_change is not none %}
                                                         <span title="{{ url.last_price_change|format_timestamp_absolute }}">Last Change: {{ url.last_price_change|format_timestamp }}</span>

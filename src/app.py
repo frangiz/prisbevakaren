@@ -36,6 +36,7 @@ class URL:
     url: str
     group_id: uuid.UUID
     current_price: Optional[float] = None
+    previous_price: Optional[float] = None
     last_price_change: Optional[str] = None  # ISO format datetime string
 
 
@@ -56,9 +57,9 @@ def create_app() -> Flask:
             dt = datetime.fromisoformat(iso_string)
             now = datetime.now(dt.tzinfo)  # Use same timezone as the stored datetime
             diff = now - dt
-            
+
             days = diff.days
-            
+
             if days == 0:
                 return "today"
             elif days == 1:
@@ -134,6 +135,7 @@ def create_app() -> Flask:
             url=new_url_string,
             group_id=existing_url.group_id,
             current_price=existing_url.current_price,
+            previous_price=existing_url.previous_price,
             last_price_change=existing_url.last_price_change,
         )
 

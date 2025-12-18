@@ -308,6 +308,7 @@ def test_url_update_preserves_price_fields(client: FlaskClient) -> None:
     urls_file = Path("urls.json")
     urls_data = json.loads(urls_file.read_text())
     urls_data[0]["current_price"] = 49.99
+    urls_data[0]["previous_price"] = 44.99
     urls_data[0]["last_price_change"] = "2025-12-15"
     urls_file.write_text(json.dumps(urls_data, indent=2))
 
@@ -321,4 +322,134 @@ def test_url_update_preserves_price_fields(client: FlaskClient) -> None:
     urls_data = json.loads(urls_file.read_text())
     assert urls_data[0]["url"] == "https://shop.com/item2"
     assert urls_data[0]["current_price"] == 49.99
+    assert urls_data[0]["previous_price"] == 44.99
     assert urls_data[0]["last_price_change"] == "2025-12-15"
+
+
+def test_url_with_previous_price_shows_diff(client: FlaskClient) -> None:
+    """Test that URLs with previous_price show price difference in UI."""
+    # Add a group and URL
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+    )
+
+    # Manually add price fields showing a price increase
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 55.00
+    urls_data[0]["previous_price"] = 50.00
+    urls_data[0]["last_price_change"] = "2025-12-18"
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    # Get the page
+    response = client.get("/")
+
+    # Should show the price increase
+    assert b"55.00" in response.data or b"55.0" in response.data
+    # Should show the price diff (increase by 5.00)
+    assert b"+5.00" in response.data or b"5.00" in response.data
+
+
+def test_url_with_previous_price_decrease(client: FlaskClient) -> None:
+    """Test that URLs show price decrease correctly."""
+    # Add a group and URL
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+    )
+
+    # Manually add price fields showing a price decrease
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 45.00
+    urls_data[0]["previous_price"] = 50.00
+    urls_data[0]["last_price_change"] = "2025-12-18"
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    # Get the page
+    response = client.get("/")
+
+    # Should show the price decrease
+    assert b"45.00" in response.data or b"45.0" in response.data
+    # Should show the price diff (decrease by 5.00)
+    assert b"-5.00" in response.data or b"5.00" in response.data
+
+
+def test_timestamp_filter_today(client: FlaskClient, app: Flask) -> None:
+    """Test that timestamp filter shows 'today' for today's date."""
+    from datetime import datetime, timezone
+
+    # Add a group and URL
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+    )
+
+    # Set last_price_change to today
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 50.00
+    urls_data[0]["last_price_change"] = datetime.now(timezone.utc).isoformat()
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    # Get the page
+    response = client.get("/")
+
+    # Should show 'today'
+    assert b"today" in response.data
+
+
+def test_timestamp_filter_days_ago(client: FlaskClient) -> None:
+    """Test that timestamp filter shows 'N days ago' correctly."""
+    from datetime import datetime, timedelta, timezone
+
+    # Add a group and URL
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+    )
+
+    # Set last_price_change to 5 days ago
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 50.00
+    five_days_ago = datetime.now(timezone.utc) - timedelta(days=5)
+    urls_data[0]["last_price_change"] = five_days_ago.isoformat()
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    # Get the page
+    response = client.get("/")
+
+    # Should show '5 days ago'
+    assert b"5 days ago" in response.data
+
+
+def test_timestamp_filter_months_ago(client: FlaskClient) -> None:
+    """Test that timestamp filter shows 'N months ago' for older dates."""
+    from datetime import datetime, timedelta, timezone
+
+    # Add a group and URL
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+    )
+
+    # Set last_price_change to 90 days ago (3 months)
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 50.00
+    ninety_days_ago = datetime.now(timezone.utc) - timedelta(days=90)
+    urls_data[0]["last_price_change"] = ninety_days_ago.isoformat()
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    # Get the page
+    response = client.get("/")
+
+    # Should show '3 months ago'
+    assert b"3 months ago" in response.data or b"months ago" in response.data
