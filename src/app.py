@@ -35,11 +35,10 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.secret_key = "dev-secret-key-change-in-production"
 
-    # Initialize databases
+    # Initialize database paths
     groups_db_path = Path("groups.json")
     urls_db_path = Path("urls.json")
     groups_db = JsonDB(Group, groups_db_path)
-    urls_db = JsonDB(URL, urls_db_path)
 
     @app.route("/")
     def index() -> str:
@@ -96,7 +95,9 @@ def create_app() -> Flask:
     @app.route("/group/delete/<int:group_id>", methods=["POST"])
     def delete_group(group_id: int) -> Union[Response, WerkzeugResponse]:
         """Delete a group (only if it has no URLs)."""
-        urls = urls_db.all()
+        # Reload database to get fresh data
+        fresh_urls_db = JsonDB(URL, urls_db_path)
+        urls = fresh_urls_db.all()
         # Check if group has any URLs
         urls_in_group = [u for u in urls if u.group_id == group_id]
         if urls_in_group:
@@ -131,7 +132,9 @@ def create_app() -> Flask:
             if not any(g.id == group_id for g in groups):
                 flash("Group does not exist!", "error")
             else:
-                existing_urls = urls_db.all()
+                # Reload database to get fresh data for ID generation
+                fresh_urls_db = JsonDB(URL, urls_db_path)
+                existing_urls = fresh_urls_db.all()
                 next_id = max([u.id for u in existing_urls], default=0) + 1
                 new_url = URL(
                     id=next_id,
@@ -140,7 +143,7 @@ def create_app() -> Flask:
                     current_price=None,
                     last_price_change=None,
                 )
-                urls_db.add(new_url)
+                fresh_urls_db.add(new_url)
                 flash("URL added successfully!", "success")
         return redirect(url_for("index"))
 
