@@ -31,6 +31,46 @@ uv run python main.py
 
 The application will be available at `http://localhost:5001`.
 
+## Price Tracking
+
+### Manual Price Update
+
+Update prices for all URLs in the database:
+
+```bash
+uv run python update_prices.py
+```
+
+### Automated Price Updates (Cron Job)
+
+Set up a cron job to automatically update prices. Edit your crontab:
+
+```bash
+crontab -e
+```
+
+Add one of the following lines:
+
+```bash
+# Update prices every hour
+0 * * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
+
+# Update prices every 6 hours
+0 */6 * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
+
+# Update prices once daily at 8 AM
+0 8 * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
+```
+
+### Supported Websites
+
+The price scraper currently supports:
+- Jula.se
+- Willys.se
+- Generic e-commerce sites (best effort)
+
+To add support for more sites, edit [src/price_scraper.py](src/price_scraper.py) and add site-specific scraping logic.
+
 ## Production Deployment
 
 For small-scale production use (1-2 concurrent users) on a local network.
