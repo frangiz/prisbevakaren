@@ -181,3 +181,71 @@ def test_multiple_groups_and_urls(client: FlaskClient) -> None:
     assert b"https://work1.com" in response.data
     assert b"https://work2.com" in response.data
     assert b"https://personal1.com" in response.data
+
+
+def test_url_with_price_fields(client: FlaskClient) -> None:
+    """Test that URLs can have price fields and they are displayed."""
+    from pathlib import Path
+    import json
+
+    # Add a group
+    client.post("/group/add", data={"group_name": "Shopping"})
+
+    # Add a URL
+    client.post("/url/add", data={"url": "https://shop.com/item", "group_id": 1})
+
+    # Manually update the JSON to include price fields (simulating script update)
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 99.99
+    urls_data[0]["last_price_change"] = "2025-12-18"
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    # Verify the price fields are displayed in the UI (database reloads on each request)
+    response = client.get("/")
+    assert b"Current Price" in response.data
+    assert b"99.99" in response.data
+    assert b"Last Change" in response.data
+    assert b"2025-12-18" in response.data
+
+
+def test_url_without_price_fields(client: FlaskClient) -> None:
+    """Test that URLs without price fields display correctly."""
+    # Add a group and URL
+    client.post("/group/add", data={"group_name": "Work"})
+    client.post("/url/add", data={"url": "https://example.com", "group_id": 1})
+
+    # Get the page
+    response = client.get("/")
+
+    # URL should be displayed
+    assert b"https://example.com" in response.data
+    # But price fields should not be shown since they're None
+    assert b"Current Price" not in response.data
+    assert b"Last Change" not in response.data
+
+
+def test_url_update_preserves_price_fields(client: FlaskClient) -> None:
+    """Test that updating a URL preserves price fields."""
+    from pathlib import Path
+    import json
+
+    # Add a group and URL
+    client.post("/group/add", data={"group_name": "Shopping"})
+    client.post("/url/add", data={"url": "https://shop.com/item1", "group_id": 1})
+
+    # Manually add price fields (simulating script update)
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 49.99
+    urls_data[0]["last_price_change"] = "2025-12-15"
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    # Update the URL
+    client.post("/url/update/1", data={"url": "https://shop.com/item2"})
+
+    # Verify price fields are preserved
+    urls_data = json.loads(urls_file.read_text())
+    assert urls_data[0]["url"] == "https://shop.com/item2"
+    assert urls_data[0]["current_price"] == 49.99
+    assert urls_data[0]["last_price_change"] == "2025-12-15"

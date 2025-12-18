@@ -295,7 +295,19 @@
                                     <li class="url-item" id="url-{{ url.id }}">
                                         <div class="url-display">
                                             <div class="url-content">
-                                                <span class="url-text">{{ url.url }}</span>
+                                                <div style="flex: 1;">
+                                                    <span class="url-text">{{ url.url }}</span>
+                                                    {% if url.current_price is not none or url.last_price_change is not none %}
+                                                    <div style="margin-top: 8px; font-size: 13px; color: #666;">
+                                                        {% if url.current_price is not none %}
+                                                        <span style="margin-right: 15px;">💰 Current Price: <strong>{{ "%.2f"|format(url.current_price) }} kr</strong></span>
+                                                        {% endif %}
+                                                        {% if url.last_price_change is not none %}
+                                                        <span>📅 Last Change: {{ url.last_price_change }}</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
                                                 <div class="url-actions">
                                                     <button onclick="toggleEdit({{ url.id }})" class="btn btn-success small-btn">Edit</button>
                                                     <form method="POST" action="{{ url_for('delete_url', url_id=url.id) }}" style="display: inline;">
