@@ -26,6 +26,8 @@ class URL:
     id: int
     url: str
     group_id: int
+    current_price: float | None = None
+    last_price_change: str | None = None
 
 
 def create_app() -> Flask:
@@ -42,8 +44,11 @@ def create_app() -> Flask:
     @app.route("/")
     def index() -> str:
         """Display the list of groups and URLs."""
-        groups = groups_db.all()
-        urls = urls_db.all()
+        # Reload databases to get fresh data (in case external script updated prices)
+        fresh_groups_db = JsonDB(Group, groups_db_path)
+        fresh_urls_db = JsonDB(URL, urls_db_path)
+        groups = fresh_groups_db.all()
+        urls = fresh_urls_db.all()
 
         # Organize URLs by group
         urls_by_group: dict[int, list[URL]] = {}
@@ -128,7 +133,13 @@ def create_app() -> Flask:
             else:
                 existing_urls = urls_db.all()
                 next_id = max([u.id for u in existing_urls], default=0) + 1
-                new_url = URL(id=next_id, url=url_input, group_id=group_id)
+                new_url = URL(
+                    id=next_id,
+                    url=url_input,
+                    group_id=group_id,
+                    current_price=None,
+                    last_price_change=None,
+                )
                 urls_db.add(new_url)
                 flash("URL added successfully!", "success")
         return redirect(url_for("index"))
@@ -138,9 +149,17 @@ def create_app() -> Flask:
         """Update an existing URL."""
         url_input = request.form.get("url", "").strip()
         if url_input:
-            urls = urls_db.all()
+            # Reload database to get fresh data (in case external script updated prices)
+            fresh_urls_db = JsonDB(URL, urls_db_path)
+            urls = fresh_urls_db.all()
             updated_urls = [
-                URL(id=u.id, url=url_input, group_id=u.group_id)
+                URL(
+                    id=u.id,
+                    url=url_input,
+                    group_id=u.group_id,
+                    current_price=u.current_price,
+                    last_price_change=u.last_price_change,
+                )
                 if u.id == url_id
                 else u
                 for u in urls
@@ -148,7 +167,13 @@ def create_app() -> Flask:
             with open(urls_db_path, "w") as f:
                 json.dump(
                     [
-                        {"id": u.id, "url": u.url, "group_id": u.group_id}
+                        {
+                            "id": u.id,
+                            "url": u.url,
+                            "group_id": u.group_id,
+                            "current_price": u.current_price,
+                            "last_price_change": u.last_price_change,
+                        }
                         for u in updated_urls
                     ],
                     f,
@@ -162,13 +187,21 @@ def create_app() -> Flask:
     @app.route("/url/delete/<int:url_id>", methods=["POST"])
     def delete_url(url_id: int) -> Union[Response, WerkzeugResponse]:
         """Delete a URL from a group."""
-        urls = urls_db.all()
+        # Reload database to get fresh data (in case external script updated prices)
+        fresh_urls_db = JsonDB(URL, urls_db_path)
+        urls = fresh_urls_db.all()
         updated_urls = [u for u in urls if u.id != url_id]
         if len(updated_urls) < len(urls):
             with open(urls_db_path, "w") as f:
                 json.dump(
                     [
-                        {"id": u.id, "url": u.url, "group_id": u.group_id}
+                        {
+                            "id": u.id,
+                            "url": u.url,
+                            "group_id": u.group_id,
+                            "current_price": u.current_price,
+                            "last_price_change": u.last_price_change,
+                        }
                         for u in updated_urls
                     ],
                     f,
