@@ -27,7 +27,7 @@ class URL:
     url: str
     group_id: int
     current_price: float | None = None
-    last_price_change: str | None = None
+    last_price_change: str | None = None  # ISO format datetime string (e.g., "2025-12-18T10:30:00")
 
 
 def create_app() -> Flask:

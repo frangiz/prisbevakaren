@@ -300,7 +300,7 @@
                                                     {% if url.current_price is not none or url.last_price_change is not none %}
                                                     <div style="margin-top: 8px; font-size: 13px; color: #666;">
                                                         {% if url.current_price is not none %}
-                                                        <span style="margin-right: 15px;">💰 Current Price: <strong>${{ "%.2f"|format(url.current_price) }}</strong></span>
+                                                        <span style="margin-right: 15px;">💰 Current Price: <strong>{{ "%.2f"|format(url.current_price) }} kr</strong></span>
                                                         {% endif %}
                                                         {% if url.last_price_change is not none %}
                                                         <span>📅 Last Change: {{ url.last_price_change }}</span>
