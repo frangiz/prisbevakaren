@@ -7,36 +7,27 @@ import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 
-from src.app import create_app, foo
-
-
-def test_foo_returns_two() -> None:
-    """Test that foo function returns 2."""
-    result = foo()
-    assert result == 2
-
-
-def test_foo_returns_integer() -> None:
-    """Test that foo function returns an integer."""
-    result = foo()
-    assert isinstance(result, int)
+from src.app import create_app
 
 
 @pytest.fixture
 def test_db_path(tmp_path: Path) -> Generator[Path, None, None]:
-    """Create a temporary database path for testing."""
-    db_file = tmp_path / "test_urls.json"
-    db_file.write_text("[]")
-    yield db_file
-    if db_file.exists():
-        db_file.unlink()
+    """Create temporary database paths for testing."""
+    groups_file = tmp_path / "groups.json"
+    urls_file = tmp_path / "urls.json"
+    groups_file.write_text("[]")
+    urls_file.write_text("[]")
+    yield tmp_path
+    if groups_file.exists():
+        groups_file.unlink()
+    if urls_file.exists():
+        urls_file.unlink()
 
 
 @pytest.fixture
 def app(test_db_path: Path, monkeypatch: pytest.MonkeyPatch) -> Flask:
     """Create a Flask app instance for testing."""
-    # Monkey patch the db_path in the create_app function
-    monkeypatch.chdir(test_db_path.parent)
+    monkeypatch.chdir(test_db_path)
     app = create_app()
     app.config["TESTING"] = True
     return app
@@ -49,37 +40,113 @@ def client(app: Flask) -> FlaskClient:
 
 
 def test_index_empty(client: FlaskClient) -> None:
-    """Test that index page loads with empty URL list."""
+    """Test that index page loads with empty state."""
     response = client.get("/")
     assert response.status_code == 200
-    assert b"No URLs yet" in response.data
+    assert b"No Groups yet" in response.data
 
 
-def test_add_url(client: FlaskClient, test_db_path: Path) -> None:
-    """Test adding a URL."""
+def test_add_group(client: FlaskClient) -> None:
+    """Test adding a group."""
     response = client.post(
-        "/add", data={"url": "https://example.com"}, follow_redirects=True
+        "/group/add", data={"group_name": "Work"}, follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"Group added successfully!" in response.data
+    assert b"Work" in response.data
+
+
+def test_add_empty_group(client: FlaskClient) -> None:
+    """Test adding an empty group name."""
+    response = client.post("/group/add", data={"group_name": ""}, follow_redirects=True)
+    assert response.status_code == 200
+    assert b"Group name cannot be empty!" in response.data
+
+
+def test_update_group(client: FlaskClient) -> None:
+    """Test renaming a group."""
+    # First add a group
+    client.post("/group/add", data={"group_name": "Work"})
+
+    # Then rename it
+    response = client.post(
+        "/group/update/1", data={"group_name": "Personal"}, follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"Group updated successfully!" in response.data
+
+
+def test_delete_empty_group(client: FlaskClient) -> None:
+    """Test deleting an empty group."""
+    # Add a group
+    client.post("/group/add", data={"group_name": "Work"})
+
+    # Delete it
+    response = client.post("/group/delete/1", follow_redirects=True)
+    assert response.status_code == 200
+    assert b"Group deleted successfully!" in response.data
+
+
+def test_delete_group_with_urls(client: FlaskClient) -> None:
+    """Test that groups with URLs cannot be deleted."""
+    # Add a group
+    client.post("/group/add", data={"group_name": "Work"})
+
+    # Add a URL to the group
+    client.post("/url/add", data={"url": "https://example.com", "group_id": 1})
+
+    # Try to delete the group
+    response = client.post("/group/delete/1", follow_redirects=True)
+    assert response.status_code == 200
+    assert b"Cannot delete group with URLs!" in response.data
+
+
+def test_add_url_to_group(client: FlaskClient) -> None:
+    """Test adding a URL to a group."""
+    # Add a group first
+    client.post("/group/add", data={"group_name": "Work"})
+
+    # Add a URL
+    response = client.post(
+        "/url/add",
+        data={"url": "https://example.com", "group_id": 1},
+        follow_redirects=True,
     )
     assert response.status_code == 200
     assert b"URL added successfully!" in response.data
     assert b"https://example.com" in response.data
 
 
+def test_add_url_without_group(client: FlaskClient) -> None:
+    """Test adding a URL without selecting a group."""
+    response = client.post(
+        "/url/add", data={"url": "https://example.com"}, follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"Please select a group!" in response.data
+
+
 def test_add_empty_url(client: FlaskClient) -> None:
     """Test adding an empty URL."""
-    response = client.post("/add", data={"url": ""}, follow_redirects=True)
+    # Add a group first
+    client.post("/group/add", data={"group_name": "Work"})
+
+    response = client.post(
+        "/url/add", data={"url": "", "group_id": 1}, follow_redirects=True
+    )
     assert response.status_code == 200
     assert b"URL cannot be empty!" in response.data
 
 
 def test_update_url(client: FlaskClient) -> None:
     """Test updating a URL."""
-    # First add a URL
-    client.post("/add", data={"url": "https://example.com"})
+    # Add a group and URL
+    client.post("/group/add", data={"group_name": "Work"})
+    client.post("/url/add", data={"url": "https://example.com", "group_id": 1})
 
-    # Then update it
+    # Update the URL
     response = client.post(
-        "/update/1", data={"url": "https://updated.com"}, follow_redirects=True
+        "/url/update/1", data={"url": "https://updated.com"}, follow_redirects=True
     )
     assert response.status_code == 200
     assert b"URL updated successfully!" in response.data
@@ -87,22 +154,30 @@ def test_update_url(client: FlaskClient) -> None:
 
 def test_delete_url(client: FlaskClient) -> None:
     """Test deleting a URL."""
-    # First add a URL
-    client.post("/add", data={"url": "https://example.com"})
+    # Add a group and URL
+    client.post("/group/add", data={"group_name": "Work"})
+    client.post("/url/add", data={"url": "https://example.com", "group_id": 1})
 
-    # Then delete it
-    response = client.post("/delete/1", follow_redirects=True)
+    # Delete the URL
+    response = client.post("/url/delete/1", follow_redirects=True)
     assert response.status_code == 200
     assert b"URL deleted successfully!" in response.data
 
 
-def test_multiple_urls(client: FlaskClient) -> None:
-    """Test adding multiple URLs."""
-    client.post("/add", data={"url": "https://example1.com"})
-    client.post("/add", data={"url": "https://example2.com"})
-    client.post("/add", data={"url": "https://example3.com"})
+def test_multiple_groups_and_urls(client: FlaskClient) -> None:
+    """Test multiple groups with URLs."""
+    # Add groups
+    client.post("/group/add", data={"group_name": "Work"})
+    client.post("/group/add", data={"group_name": "Personal"})
+
+    # Add URLs to different groups
+    client.post("/url/add", data={"url": "https://work1.com", "group_id": 1})
+    client.post("/url/add", data={"url": "https://work2.com", "group_id": 1})
+    client.post("/url/add", data={"url": "https://personal1.com", "group_id": 2})
 
     response = client.get("/")
-    assert b"https://example1.com" in response.data
-    assert b"https://example2.com" in response.data
-    assert b"https://example3.com" in response.data
+    assert b"Work" in response.data
+    assert b"Personal" in response.data
+    assert b"https://work1.com" in response.data
+    assert b"https://work2.com" in response.data
+    assert b"https://personal1.com" in response.data

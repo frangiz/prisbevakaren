@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>URL Manager</title>
+    <title>URL Manager with Groups</title>
     <style>
         * {
             margin: 0;
@@ -17,7 +17,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
             border-radius: 10px;
@@ -29,6 +29,11 @@
             margin-bottom: 30px;
             text-align: center;
             font-size: 2em;
+        }
+        h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1.3em;
         }
         .flash-messages {
             margin-bottom: 20px;
@@ -53,15 +58,20 @@
             gap: 10px;
             margin-bottom: 30px;
         }
-        .add-form input[type="text"] {
-            flex: 1;
+        .add-form input[type="text"], .add-form select {
             padding: 12px 15px;
             border: 2px solid #ddd;
             border-radius: 5px;
             font-size: 16px;
             transition: border-color 0.3s;
         }
-        .add-form input[type="text"]:focus {
+        .add-form input[type="text"] {
+            flex: 2;
+        }
+        .add-form select {
+            flex: 1;
+        }
+        .add-form input[type="text"]:focus, .add-form select:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -96,15 +106,68 @@
         .btn-success:hover {
             background-color: #218838;
         }
+        .btn-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .btn-info:hover {
+            background-color: #138496;
+        }
+        .small-btn {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .group-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+        }
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .group-header.editing .group-display {
+            display: none;
+        }
+        .group-header .group-edit {
+            display: none;
+        }
+        .group-header.editing .group-edit {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+        .group-edit input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        .group-name {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+        }
+        .group-actions {
+            display: flex;
+            gap: 5px;
+        }
         .url-list {
             list-style: none;
         }
         .url-item {
-            background: #f8f9fa;
-            padding: 15px;
-            margin-bottom: 10px;
+            background: white;
+            padding: 12px 15px;
+            margin-bottom: 8px;
             border-radius: 5px;
-            border-left: 4px solid #667eea;
+            border-left: 3px solid #28a745;
             transition: transform 0.2s;
         }
         .url-item:hover {
@@ -119,7 +182,7 @@
             flex: 1;
             word-break: break-all;
             color: #333;
-            font-size: 16px;
+            font-size: 15px;
         }
         .url-actions {
             display: flex;
@@ -153,9 +216,11 @@
             margin-bottom: 20px;
             opacity: 0.5;
         }
-        .small-btn {
-            padding: 6px 12px;
-            font-size: 14px;
+        .empty-group {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-style: italic;
         }
     </style>
 </head>
@@ -173,43 +238,95 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST" action="{{ url_for('add_url') }}" class="add-form">
-            <input type="text" name="url" placeholder="Enter a URL (e.g., https://example.com)" required>
-            <button type="submit" class="btn btn-primary">Add URL</button>
-        </form>
+        <!-- Add Group Form -->
+        <div class="section">
+            <h2>📁 Add Group</h2>
+            <form method="POST" action="{{ url_for('add_group') }}" class="add-form">
+                <input type="text" name="group_name" placeholder="Enter group name (e.g., Work, Personal)" required>
+                <button type="submit" class="btn btn-primary">Add Group</button>
+            </form>
+        </div>
 
-        {% if urls %}
-            <ul class="url-list">
-                {% for url in urls %}
-                    <li class="url-item" id="url-{{ url.id }}">
-                        <div class="url-display">
-                            <div class="url-content">
-                                <span class="url-text">{{ url.url }}</span>
-                                <div class="url-actions">
-                                    <button onclick="toggleEdit({{ url.id }})" class="btn btn-success small-btn">Edit</button>
-                                    <form method="POST" action="{{ url_for('delete_url', url_id=url.id) }}" style="display: inline;">
-                                        <button type="submit" class="btn btn-danger small-btn" onclick="return confirm('Are you sure you want to delete this URL?')">Delete</button>
+        <!-- Add URL Form -->
+        {% if groups %}
+        <div class="section">
+            <h2>🔗 Add URL</h2>
+            <form method="POST" action="{{ url_for('add_url') }}" class="add-form">
+                <input type="text" name="url" placeholder="Enter a URL (e.g., https://example.com)" required>
+                <select name="group_id" required>
+                    <option value="">Select Group</option>
+                    {% for group in groups %}
+                        <option value="{{ group.id }}">{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-info">Add URL</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Groups and URLs Display -->
+        {% if groups %}
+            <div class="section">
+                <h2>📂 Groups & URLs</h2>
+                {% for group in groups %}
+                    <div class="group-card">
+                        <div class="group-header" id="group-header-{{ group.id }}">
+                            <div class="group-display" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span class="group-name">{{ group.name }}</span>
+                                <div class="group-actions">
+                                    <button onclick="toggleGroupEdit({{ group.id }})" class="btn btn-success small-btn">Rename</button>
+                                    <form method="POST" action="{{ url_for('delete_group', group_id=group.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-danger small-btn" onclick="return confirm('Are you sure you want to delete this group?')">Delete</button>
                                     </form>
                                 </div>
                             </div>
+                            <div class="group-edit">
+                                <form method="POST" action="{{ url_for('update_group', group_id=group.id) }}" style="display: flex; gap: 10px; width: 100%;">
+                                    <input type="text" name="group_name" value="{{ group.name }}" required>
+                                    <button type="submit" class="btn btn-success small-btn">Save</button>
+                                    <button type="button" onclick="toggleGroupEdit({{ group.id }})" class="btn btn-danger small-btn">Cancel</button>
+                                </form>
+                            </div>
                         </div>
-                        <div class="url-edit">
-                            <form method="POST" action="{{ url_for('update_url', url_id=url.id) }}" style="display: flex; gap: 10px; width: 100%;">
-                                <input type="text" name="url" value="{{ url.url }}" required>
-                                <button type="submit" class="btn btn-success small-btn">Save</button>
-                                <button type="button" onclick="toggleEdit({{ url.id }})" class="btn btn-danger small-btn">Cancel</button>
-                            </form>
-                        </div>
-                    </li>
+
+                        {% if urls_by_group.get(group.id) %}
+                            <ul class="url-list">
+                                {% for url in urls_by_group[group.id] %}
+                                    <li class="url-item" id="url-{{ url.id }}">
+                                        <div class="url-display">
+                                            <div class="url-content">
+                                                <span class="url-text">{{ url.url }}</span>
+                                                <div class="url-actions">
+                                                    <button onclick="toggleEdit({{ url.id }})" class="btn btn-success small-btn">Edit</button>
+                                                    <form method="POST" action="{{ url_for('delete_url', url_id=url.id) }}" style="display: inline;">
+                                                        <button type="submit" class="btn btn-danger small-btn" onclick="return confirm('Are you sure you want to delete this URL?')">Delete</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="url-edit">
+                                            <form method="POST" action="{{ url_for('update_url', url_id=url.id) }}" style="display: flex; gap: 10px; width: 100%;">
+                                                <input type="text" name="url" value="{{ url.url }}" required>
+                                                <button type="submit" class="btn btn-success small-btn">Save</button>
+                                                <button type="button" onclick="toggleEdit({{ url.id }})" class="btn btn-danger small-btn">Cancel</button>
+                                            </form>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="empty-group">No URLs in this group yet</div>
+                        {% endif %}
+                    </div>
                 {% endfor %}
-            </ul>
+            </div>
         {% else %}
             <div class="empty-state">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                 </svg>
-                <h2>No URLs yet</h2>
-                <p>Add your first URL using the form above!</p>
+                <h2>No Groups yet</h2>
+                <p>Create your first group to start organizing URLs!</p>
             </div>
         {% endif %}
     </div>
@@ -218,6 +335,11 @@
         function toggleEdit(id) {
             const item = document.getElementById('url-' + id);
             item.classList.toggle('editing');
+        }
+
+        function toggleGroupEdit(id) {
+            const header = document.getElementById('group-header-' + id);
+            header.classList.toggle('editing');
         }
     </script>
 </body>

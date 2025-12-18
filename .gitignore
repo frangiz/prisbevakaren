@@ -211,5 +211,6 @@ __marimo__/
 .DS_Store
 .vscode/
 
-# URL Manager database
+# URL Manager databases
 urls.json
+groups.json

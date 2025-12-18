@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "flask>=3.1.0",
-    "typed-json-db>=0.1.0",
+    "typed-json-db==0.3.1",
 ]
 
 [dependency-groups]
