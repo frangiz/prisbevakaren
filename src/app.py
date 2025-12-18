@@ -63,6 +63,21 @@ def create_app() -> Flask:
             return True
         return any(g.id != exclude_id for g in existing)
 
+    def validate_non_empty_input(value: str, field_name: str) -> bool:
+        """Validate that input is not empty. Flash error and return False if empty."""
+        if not value:
+            flash(f"{field_name} cannot be empty!", FLASH_ERROR)
+            return False
+        return True
+
+    def validate_group_exists(group_id: uuid.UUID) -> bool:
+        """Validate that a group exists. Flash error and return False if not found."""
+        groups_db = get_groups_db()
+        if not groups_db.get(group_id):
+            flash("Group does not exist!", FLASH_ERROR)
+            return False
+        return True
+
     @app.route("/")
     def index() -> str:
         """Display the list of groups and URLs."""
@@ -81,23 +96,24 @@ def create_app() -> Flask:
     def add_group() -> Union[Response, WerkzeugResponse]:
         """Add a new group."""
         group_name = request.form.get("group_name", "").strip()
-        if not group_name:
-            flash("Group name cannot be empty!", FLASH_ERROR)
-        elif is_duplicate_group_name(group_name):
+        if not validate_non_empty_input(group_name, "Group name"):
+            return redirect(url_for("index"))
+
+        if is_duplicate_group_name(group_name):
             flash("Group with this name already exists!", FLASH_ERROR)
-        else:
-            new_group = Group(id=uuid.uuid4(), name=group_name)
-            groups_db = get_groups_db()
-            groups_db.add(new_group)
-            flash("Group added successfully!", FLASH_SUCCESS)
+            return redirect(url_for("index"))
+
+        new_group = Group(id=uuid.uuid4(), name=group_name)
+        groups_db = get_groups_db()
+        groups_db.add(new_group)
+        flash("Group added successfully!", FLASH_SUCCESS)
         return redirect(url_for("index"))
 
     @app.route("/group/update/<uuid:group_id>", methods=["POST"])
     def update_group(group_id: uuid.UUID) -> Union[Response, WerkzeugResponse]:
         """Update/rename a group."""
         group_name = request.form.get("group_name", "").strip()
-        if not group_name:
-            flash("Group name cannot be empty!", FLASH_ERROR)
+        if not validate_non_empty_input(group_name, "Group name"):
             return redirect(url_for("index"))
 
         groups_db = get_groups_db()
@@ -138,8 +154,7 @@ def create_app() -> Flask:
         url_input = request.form.get("url", "").strip()
         group_id_str = request.form.get("group_id", "")
 
-        if not url_input:
-            flash("URL cannot be empty!", FLASH_ERROR)
+        if not validate_non_empty_input(url_input, "URL"):
             return redirect(url_for("index"))
 
         if not group_id_str:
@@ -152,9 +167,7 @@ def create_app() -> Flask:
             flash("Invalid group ID!", FLASH_ERROR)
             return redirect(url_for("index"))
 
-        groups_db = get_groups_db()
-        if not groups_db.get(group_id):
-            flash("Group does not exist!", FLASH_ERROR)
+        if not validate_group_exists(group_id):
             return redirect(url_for("index"))
 
         new_url = URL(
@@ -171,8 +184,7 @@ def create_app() -> Flask:
     def update_url(url_id: uuid.UUID) -> Union[Response, WerkzeugResponse]:
         """Update an existing URL."""
         url_input = request.form.get("url", "").strip()
-        if not url_input:
-            flash("URL cannot be empty!", FLASH_ERROR)
+        if not validate_non_empty_input(url_input, "URL"):
             return redirect(url_for("index"))
 
         urls_db = get_urls_db()
