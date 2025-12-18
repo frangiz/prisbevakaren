@@ -1,7 +1,9 @@
 """Tests for app module."""
 
+import json
 from pathlib import Path
 from typing import Generator
+import uuid
 
 import pytest
 from flask import Flask
@@ -39,6 +41,30 @@ def client(app: Flask) -> FlaskClient:
     return app.test_client()
 
 
+def get_group_id_by_name(name: str) -> uuid.UUID:
+    """Helper to get group ID by name from database."""
+    groups_file = Path("groups.json")
+    if not groups_file.exists():
+        raise ValueError("Groups file not found")
+    groups_data = json.loads(groups_file.read_text())
+    for group in groups_data:
+        if group.get("name") == name:
+            return uuid.UUID(group["id"])
+    raise ValueError(f"Group '{name}' not found")
+
+
+def get_url_id_by_url(url: str) -> uuid.UUID:
+    """Helper to get URL ID by url string from database."""
+    urls_file = Path("urls.json")
+    if not urls_file.exists():
+        raise ValueError("URLs file not found")
+    urls_data = json.loads(urls_file.read_text())
+    for url_item in urls_data:
+        if url_item.get("url") == url:
+            return uuid.UUID(url_item["id"])
+    raise ValueError(f"URL '{url}' not found")
+
+
 def test_index_empty(client: FlaskClient) -> None:
     """Test that index page loads with empty state."""
     response = client.get("/")
@@ -68,9 +94,12 @@ def test_update_group(client: FlaskClient) -> None:
     # First add a group
     client.post("/group/add", data={"group_name": "Work"})
 
+    # Get the group ID
+    group_id = get_group_id_by_name("Work")
+
     # Then rename it
     response = client.post(
-        "/group/update/1", data={"group_name": "Personal"}, follow_redirects=True
+        f"/group/update/{group_id}", data={"group_name": "Personal"}, follow_redirects=True
     )
     assert response.status_code == 200
     assert b"Group updated successfully!" in response.data
@@ -81,8 +110,11 @@ def test_delete_empty_group(client: FlaskClient) -> None:
     # Add a group
     client.post("/group/add", data={"group_name": "Work"})
 
+    # Get the group ID
+    group_id = get_group_id_by_name("Work")
+
     # Delete it
-    response = client.post("/group/delete/1", follow_redirects=True)
+    response = client.post(f"/group/delete/{group_id}", follow_redirects=True)
     assert response.status_code == 200
     assert b"Group deleted successfully!" in response.data
 
@@ -92,11 +124,14 @@ def test_delete_group_with_urls(client: FlaskClient) -> None:
     # Add a group
     client.post("/group/add", data={"group_name": "Work"})
 
+    # Get the group ID
+    group_id = get_group_id_by_name("Work")
+
     # Add a URL to the group
-    client.post("/url/add", data={"url": "https://example.com", "group_id": 1})
+    client.post("/url/add", data={"url": "https://example.com", "group_id": str(group_id)})
 
     # Try to delete the group
-    response = client.post("/group/delete/1", follow_redirects=True)
+    response = client.post(f"/group/delete/{group_id}", follow_redirects=True)
     assert response.status_code == 200
     assert b"Cannot delete group with URLs!" in response.data
 
@@ -106,10 +141,13 @@ def test_add_url_to_group(client: FlaskClient) -> None:
     # Add a group first
     client.post("/group/add", data={"group_name": "Work"})
 
+    # Get the group ID
+    group_id = get_group_id_by_name("Work")
+
     # Add a URL
     response = client.post(
         "/url/add",
-        data={"url": "https://example.com", "group_id": 1},
+        data={"url": "https://example.com", "group_id": str(group_id)},
         follow_redirects=True,
     )
     assert response.status_code == 200
@@ -131,8 +169,11 @@ def test_add_empty_url(client: FlaskClient) -> None:
     # Add a group first
     client.post("/group/add", data={"group_name": "Work"})
 
+    # Get the group ID
+    group_id = get_group_id_by_name("Work")
+
     response = client.post(
-        "/url/add", data={"url": "", "group_id": 1}, follow_redirects=True
+        "/url/add", data={"url": "", "group_id": str(group_id)}, follow_redirects=True
     )
     assert response.status_code == 200
     assert b"URL cannot be empty!" in response.data
@@ -142,11 +183,15 @@ def test_update_url(client: FlaskClient) -> None:
     """Test updating a URL."""
     # Add a group and URL
     client.post("/group/add", data={"group_name": "Work"})
-    client.post("/url/add", data={"url": "https://example.com", "group_id": 1})
+    group_id = get_group_id_by_name("Work")
+    client.post("/url/add", data={"url": "https://example.com", "group_id": str(group_id)})
+
+    # Get the URL ID
+    url_id = get_url_id_by_url("https://example.com")
 
     # Update the URL
     response = client.post(
-        "/url/update/1", data={"url": "https://updated.com"}, follow_redirects=True
+        f"/url/update/{url_id}", data={"url": "https://updated.com"}, follow_redirects=True
     )
     assert response.status_code == 200
     assert b"URL updated successfully!" in response.data
@@ -156,10 +201,14 @@ def test_delete_url(client: FlaskClient) -> None:
     """Test deleting a URL."""
     # Add a group and URL
     client.post("/group/add", data={"group_name": "Work"})
-    client.post("/url/add", data={"url": "https://example.com", "group_id": 1})
+    group_id = get_group_id_by_name("Work")
+    client.post("/url/add", data={"url": "https://example.com", "group_id": str(group_id)})
+
+    # Get the URL ID
+    url_id = get_url_id_by_url("https://example.com")
 
     # Delete the URL
-    response = client.post("/url/delete/1", follow_redirects=True)
+    response = client.post(f"/url/delete/{url_id}", follow_redirects=True)
     assert response.status_code == 200
     assert b"URL deleted successfully!" in response.data
 
@@ -170,10 +219,14 @@ def test_multiple_groups_and_urls(client: FlaskClient) -> None:
     client.post("/group/add", data={"group_name": "Work"})
     client.post("/group/add", data={"group_name": "Personal"})
 
+    # Get group IDs
+    work_id = get_group_id_by_name("Work")
+    personal_id = get_group_id_by_name("Personal")
+
     # Add URLs to different groups
-    client.post("/url/add", data={"url": "https://work1.com", "group_id": 1})
-    client.post("/url/add", data={"url": "https://work2.com", "group_id": 1})
-    client.post("/url/add", data={"url": "https://personal1.com", "group_id": 2})
+    client.post("/url/add", data={"url": "https://work1.com", "group_id": str(work_id)})
+    client.post("/url/add", data={"url": "https://work2.com", "group_id": str(work_id)})
+    client.post("/url/add", data={"url": "https://personal1.com", "group_id": str(personal_id)})
 
     response = client.get("/")
     assert b"Work" in response.data
@@ -185,14 +238,14 @@ def test_multiple_groups_and_urls(client: FlaskClient) -> None:
 
 def test_url_with_price_fields(client: FlaskClient) -> None:
     """Test that URLs can have price fields and they are displayed."""
-    from pathlib import Path
-    import json
-
     # Add a group
     client.post("/group/add", data={"group_name": "Shopping"})
 
+    # Get the group ID
+    group_id = get_group_id_by_name("Shopping")
+
     # Add a URL
-    client.post("/url/add", data={"url": "https://shop.com/item", "group_id": 1})
+    client.post("/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)})
 
     # Manually update the JSON to include price fields (simulating script update)
     urls_file = Path("urls.json")
@@ -213,7 +266,8 @@ def test_url_without_price_fields(client: FlaskClient) -> None:
     """Test that URLs without price fields display correctly."""
     # Add a group and URL
     client.post("/group/add", data={"group_name": "Work"})
-    client.post("/url/add", data={"url": "https://example.com", "group_id": 1})
+    group_id = get_group_id_by_name("Work")
+    client.post("/url/add", data={"url": "https://example.com", "group_id": str(group_id)})
 
     # Get the page
     response = client.get("/")
@@ -227,12 +281,10 @@ def test_url_without_price_fields(client: FlaskClient) -> None:
 
 def test_url_update_preserves_price_fields(client: FlaskClient) -> None:
     """Test that updating a URL preserves price fields."""
-    from pathlib import Path
-    import json
-
     # Add a group and URL
     client.post("/group/add", data={"group_name": "Shopping"})
-    client.post("/url/add", data={"url": "https://shop.com/item1", "group_id": 1})
+    group_id = get_group_id_by_name("Shopping")
+    client.post("/url/add", data={"url": "https://shop.com/item1", "group_id": str(group_id)})
 
     # Manually add price fields (simulating script update)
     urls_file = Path("urls.json")
@@ -241,8 +293,11 @@ def test_url_update_preserves_price_fields(client: FlaskClient) -> None:
     urls_data[0]["last_price_change"] = "2025-12-15"
     urls_file.write_text(json.dumps(urls_data, indent=2))
 
+    # Get the URL ID
+    url_id = get_url_id_by_url("https://shop.com/item1")
+
     # Update the URL
-    client.post("/url/update/1", data={"url": "https://shop.com/item2"})
+    client.post(f"/url/update/{url_id}", data={"url": "https://shop.com/item2"})
 
     # Verify price fields are preserved
     urls_data = json.loads(urls_file.read_text())
