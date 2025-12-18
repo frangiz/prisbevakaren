@@ -29,7 +29,7 @@ make test
 uv run python main.py
 ```
 
-The application will be available at `http://localhost:5000`.
+The application will be available at `http://localhost:5001`.
 
 ## Production Deployment
 
