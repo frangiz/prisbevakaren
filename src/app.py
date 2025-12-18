@@ -86,6 +86,16 @@ def create_app() -> Flask:
             flash(f"Invalid {field_name}!", FLASH_ERROR)
             return None
 
+    def create_updated_url(existing_url: URL, new_url_string: str) -> URL:
+        """Create an updated URL object, preserving price fields from existing URL."""
+        return URL(
+            id=existing_url.id,
+            url=new_url_string,
+            group_id=existing_url.group_id,
+            current_price=existing_url.current_price,
+            last_price_change=existing_url.last_price_change,
+        )
+
     @app.route("/")
     def index() -> str:
         """Display the list of groups and URLs."""
@@ -199,13 +209,7 @@ def create_app() -> Flask:
             flash("URL not found!", FLASH_ERROR)
             return redirect(url_for("index"))
 
-        updated_url = URL(
-            id=url_id,
-            url=url_input,
-            group_id=existing_url.group_id,
-            current_price=existing_url.current_price,
-            last_price_change=existing_url.last_price_change,
-        )
+        updated_url = create_updated_url(existing_url, url_input)
         urls_db.update(updated_url)
         flash("URL updated successfully!", FLASH_SUCCESS)
         return redirect(url_for("index"))
