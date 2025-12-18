@@ -1,5 +1,6 @@
 """Flask application for URL management with groups."""
 
+import os
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
@@ -40,7 +41,9 @@ class URL:
 def create_app() -> Flask:
     """Create and configure the Flask application."""
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = "dev-secret-key-change-in-production"
+    app.config["SECRET_KEY"] = os.environ.get(
+        "SECRET_KEY", "dev-secret-key-change-in-production"
+    )
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max request size
 
     def get_groups_db() -> IndexedJsonDB[Group, uuid.UUID]:
