@@ -34,7 +34,8 @@ class URL:
 def create_app() -> Flask:
     """Create and configure the Flask application."""
     app = Flask(__name__)
-    app.secret_key = "dev-secret-key-change-in-production"
+    app.config["SECRET_KEY"] = "dev-secret-key-change-in-production"
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max request size
 
     # Initialize database paths
     groups_db_path = Path("groups.json")
@@ -93,7 +94,9 @@ def create_app() -> Flask:
                 flash("Group not found!", "error")
             else:
                 # Check for duplicate name (excluding current group)
-                duplicates = [g for g in groups_db.find(name=group_name) if g.id != group_id]
+                duplicates = [
+                    g for g in groups_db.find(name=group_name) if g.id != group_id
+                ]
                 if duplicates:
                     flash("Another group with this name already exists!", "error")
                 else:

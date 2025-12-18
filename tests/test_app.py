@@ -99,7 +99,9 @@ def test_update_group(client: FlaskClient) -> None:
 
     # Then rename it
     response = client.post(
-        f"/group/update/{group_id}", data={"group_name": "Personal"}, follow_redirects=True
+        f"/group/update/{group_id}",
+        data={"group_name": "Personal"},
+        follow_redirects=True,
     )
     assert response.status_code == 200
     assert b"Group updated successfully!" in response.data
@@ -128,7 +130,9 @@ def test_delete_group_with_urls(client: FlaskClient) -> None:
     group_id = get_group_id_by_name("Work")
 
     # Add a URL to the group
-    client.post("/url/add", data={"url": "https://example.com", "group_id": str(group_id)})
+    client.post(
+        "/url/add", data={"url": "https://example.com", "group_id": str(group_id)}
+    )
 
     # Try to delete the group
     response = client.post(f"/group/delete/{group_id}", follow_redirects=True)
@@ -184,14 +188,18 @@ def test_update_url(client: FlaskClient) -> None:
     # Add a group and URL
     client.post("/group/add", data={"group_name": "Work"})
     group_id = get_group_id_by_name("Work")
-    client.post("/url/add", data={"url": "https://example.com", "group_id": str(group_id)})
+    client.post(
+        "/url/add", data={"url": "https://example.com", "group_id": str(group_id)}
+    )
 
     # Get the URL ID
     url_id = get_url_id_by_url("https://example.com")
 
     # Update the URL
     response = client.post(
-        f"/url/update/{url_id}", data={"url": "https://updated.com"}, follow_redirects=True
+        f"/url/update/{url_id}",
+        data={"url": "https://updated.com"},
+        follow_redirects=True,
     )
     assert response.status_code == 200
     assert b"URL updated successfully!" in response.data
@@ -202,7 +210,9 @@ def test_delete_url(client: FlaskClient) -> None:
     # Add a group and URL
     client.post("/group/add", data={"group_name": "Work"})
     group_id = get_group_id_by_name("Work")
-    client.post("/url/add", data={"url": "https://example.com", "group_id": str(group_id)})
+    client.post(
+        "/url/add", data={"url": "https://example.com", "group_id": str(group_id)}
+    )
 
     # Get the URL ID
     url_id = get_url_id_by_url("https://example.com")
@@ -226,7 +236,9 @@ def test_multiple_groups_and_urls(client: FlaskClient) -> None:
     # Add URLs to different groups
     client.post("/url/add", data={"url": "https://work1.com", "group_id": str(work_id)})
     client.post("/url/add", data={"url": "https://work2.com", "group_id": str(work_id)})
-    client.post("/url/add", data={"url": "https://personal1.com", "group_id": str(personal_id)})
+    client.post(
+        "/url/add", data={"url": "https://personal1.com", "group_id": str(personal_id)}
+    )
 
     response = client.get("/")
     assert b"Work" in response.data
@@ -245,7 +257,9 @@ def test_url_with_price_fields(client: FlaskClient) -> None:
     group_id = get_group_id_by_name("Shopping")
 
     # Add a URL
-    client.post("/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)})
+    client.post(
+        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+    )
 
     # Manually update the JSON to include price fields (simulating script update)
     urls_file = Path("urls.json")
@@ -267,7 +281,9 @@ def test_url_without_price_fields(client: FlaskClient) -> None:
     # Add a group and URL
     client.post("/group/add", data={"group_name": "Work"})
     group_id = get_group_id_by_name("Work")
-    client.post("/url/add", data={"url": "https://example.com", "group_id": str(group_id)})
+    client.post(
+        "/url/add", data={"url": "https://example.com", "group_id": str(group_id)}
+    )
 
     # Get the page
     response = client.get("/")
@@ -284,7 +300,9 @@ def test_url_update_preserves_price_fields(client: FlaskClient) -> None:
     # Add a group and URL
     client.post("/group/add", data={"group_name": "Shopping"})
     group_id = get_group_id_by_name("Shopping")
-    client.post("/url/add", data={"url": "https://shop.com/item1", "group_id": str(group_id)})
+    client.post(
+        "/url/add", data={"url": "https://shop.com/item1", "group_id": str(group_id)}
+    )
 
     # Manually add price fields (simulating script update)
     urls_file = Path("urls.json")
