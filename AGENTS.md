@@ -20,6 +20,11 @@ uv sync
 | Run all checks | `make all` |
 | Run the app | `uv run python main.py` |
 
+## Pull Request Requirements
+
+- **Always run `make all` before committing** — all tests, linting, and type checks must pass
+- Do not submit a PR with failing tests or lint errors
+
 ## Code Style Priorities
 1. **Readability first** - Clear, self-documenting code
 2. **Non-verbose** - Concise but not cryptic
