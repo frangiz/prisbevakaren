@@ -1,5 +1,6 @@
 """Shared test fixtures for Playwright E2E tests."""
 
+import os
 import socket
 import threading
 from pathlib import Path
@@ -32,8 +33,6 @@ def live_server(tmp_path: Path) -> Generator[str, None, None]:
     urls_file.write_text("[]")
 
     original_cwd = Path.cwd()
-    import os
-
     os.chdir(tmp_path)
 
     app = create_app()
@@ -45,7 +44,8 @@ def live_server(tmp_path: Path) -> Generator[str, None, None]:
     thread.daemon = True
     thread.start()
 
-    yield f"http://127.0.0.1:{port}"
-
-    server.shutdown()
-    os.chdir(original_cwd)
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.shutdown()
+        os.chdir(original_cwd)
