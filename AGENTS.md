@@ -1,4 +1,29 @@
-# AI Assistant Rules for invoice_importer
+# AI Assistant Rules for prisbevakaren
+
+A Flask web application for price tracking across multiple websites.
+
+## Setup
+
+```bash
+uv sync
+```
+
+## Commands
+
+| Task | Command |
+|---|---|
+| Run unit tests | `make test` |
+| Lint | `make check` |
+| Format | `make format` |
+| Format check | `make format-check` |
+| Type check | `make type-check` |
+| Run all checks | `make all` |
+| Run the app | `uv run python main.py` |
+
+## Pull Request Requirements
+
+- **Always run `make all` before committing** — all tests, linting, and type checks must pass
+- Do not submit a PR with failing tests or lint errors
 
 ## Code Style Priorities
 1. **Readability first** - Clear, self-documenting code
