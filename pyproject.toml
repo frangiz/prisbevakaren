@@ -17,6 +17,7 @@ dev = [
     "mypy>=1.19.1",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+    "pytest-playwright>=0.7.2",
     "ruff>=0.14.9",
     "types-requests>=2.32.0",
     "types-beautifulsoup4>=4.12.0",
