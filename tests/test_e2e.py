@@ -1,12 +1,15 @@
 """Playwright end-to-end tests for the Prisbevakaren web application."""
 
-import json
 import re
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional
 
 from playwright.sync_api import Page, expect
+from typed_json_db import IndexedJsonDB
 
+from src.app import URL
 from tests.conftest import LiveServer
 
 
@@ -31,17 +34,24 @@ def _add_url(page: Page, url: str, group_name: str) -> None:
 
 def _set_price_fields(
     tmp_path: Path,
-    current_price: float | None = None,
-    previous_price: float | None = None,
-    last_price_change: str | None = None,
+    current_price: Optional[float] = None,
+    previous_price: Optional[float] = None,
+    last_price_change: Optional[str] = None,
 ) -> None:
-    """Manually set price fields on the first URL in the database."""
-    urls_file = tmp_path / "urls.json"
-    urls_data = json.loads(urls_file.read_text())
-    urls_data[0]["current_price"] = current_price
-    urls_data[0]["previous_price"] = previous_price
-    urls_data[0]["last_price_change"] = last_price_change
-    urls_file.write_text(json.dumps(urls_data, indent=2))
+    """Set price fields on the first URL in the database using the db object."""
+    urls_db: IndexedJsonDB[URL, uuid.UUID] = IndexedJsonDB(
+        URL, tmp_path / "urls.json", primary_key="id"
+    )
+    url_entry = urls_db.all()[0]
+    updated = URL(
+        id=url_entry.id,
+        url=url_entry.url,
+        group_id=url_entry.group_id,
+        current_price=current_price,
+        previous_price=previous_price,
+        last_price_change=last_price_change,
+    )
+    urls_db.update(updated)
 
 
 def test_index_page_loads(page: Page, live_server: LiveServer) -> None:
