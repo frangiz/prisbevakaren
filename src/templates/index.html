@@ -221,6 +221,56 @@
             border-radius: 5px;
             font-size: 14px;
         }
+        .price-on-target {
+            background-color: #d4edda;
+            border-left-color: #218838;
+        }
+        .target-badge {
+            display: inline-block;
+            background-color: #218838;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+        .price-history-toggle {
+            cursor: pointer;
+            color: #667eea;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+        .price-history-toggle:hover {
+            text-decoration: underline;
+        }
+        .price-history-list {
+            display: none;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #666;
+            padding-left: 10px;
+            border-left: 2px solid #ddd;
+        }
+        .price-history-list.visible {
+            display: block;
+        }
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .btn-export {
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+        .btn-export:hover {
+            background-color: #5a6268;
+        }
         .empty-state {
             text-align: center;
             padding: 40px;
@@ -277,7 +327,10 @@
 </head>
 <body>
     <div class="container">
-        <h1>Prisbevakaren</h1>
+        <div class="header-actions">
+            <h1>Prisbevakaren</h1>
+            <a href="{{ url_for('export_data') }}" class="btn btn-export" title="Export all data as JSON">⬇ Export</a>
+        </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -301,6 +354,7 @@
                         <option value="{{ group.id }}">{{ group.name }}</option>
                     {% endfor %}
                 </select>
+                <input type="number" name="target_price" placeholder="Target price" step="0.01" min="0" style="flex: 0.5;">
                 <button type="submit" class="btn btn-info">Add URL</button>
             </form>
         </div>
@@ -348,12 +402,15 @@
                         {% if urls_by_group.get(group.id) %}
                             <ul class="url-list">
                                 {% for url in urls_by_group[group.id] %}
-                                    <li class="url-item" id="url-{{ url.id }}">
+                                    <li class="url-item{% if url.target_price is not none and url.current_price is not none and url.current_price <= url.target_price %} price-on-target{% endif %}" id="url-{{ url.id }}">
                                         <div class="url-display">
                                             <div class="url-content">
                                                 <div style="flex: 1;">
                                                     <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-text url-link">{{ url.url }}</a>
-                                                    {% if url.current_price is not none or url.last_price_change is not none %}
+                                                    {% if url.target_price is not none and url.current_price is not none and url.current_price <= url.target_price %}
+                                                        <span class="target-badge">✓ Target reached</span>
+                                                    {% endif %}
+                                                    {% if url.current_price is not none or url.last_price_change is not none or url.target_price is not none %}
                                                     <div style="margin-top: 8px; font-size: 13px; color: #666;">
                                                         {% if url.current_price is not none %}
                                                         <span style="margin-right: 15px;">
@@ -368,9 +425,22 @@
                                                             {% endif %}
                                                         </span>
                                                         {% endif %}
+                                                        {% if url.target_price is not none %}
+                                                        <span style="margin-right: 15px;">Target: <strong>{{ "%.2f"|format(url.target_price) }} kr</strong></span>
+                                                        {% endif %}
                                                         {% if url.last_price_change is not none %}
                                                         <span title="{{ url.last_price_change|format_timestamp_absolute }}">Last Change: {{ url.last_price_change|format_timestamp }}</span>
                                                         {% endif %}
+                                                        {% if url.price_history %}
+                                                        <span class="price-history-toggle" onclick="toggleHistory('{{ url.id }}')">📊 History ({{ url.price_history|length }})</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% endif %}
+                                                    {% if url.price_history %}
+                                                    <div class="price-history-list" id="history-{{ url.id }}">
+                                                        {% for entry in url.price_history|reverse %}
+                                                        <div>{{ entry.timestamp|format_timestamp_absolute }} — {{ "%.2f"|format(entry.price) }} kr</div>
+                                                        {% endfor %}
                                                     </div>
                                                     {% endif %}
                                                 </div>
@@ -385,6 +455,7 @@
                                         <div class="url-edit">
                                             <form method="POST" action="{{ url_for('update_url', url_id=url.id) }}" style="display: flex; gap: 10px; width: 100%;">
                                                 <input type="text" name="url" value="{{ url.url }}" required>
+                                                <input type="number" name="target_price" value="{{ url.target_price if url.target_price is not none else '' }}" placeholder="Target" step="0.01" min="0" style="width: 100px;">
                                                 <button type="submit" class="btn btn-success small-btn" title="Save">✓</button>
                                                 <button type="button" onclick="toggleEdit('{{ url.id }}')" class="btn btn-secondary small-btn" title="Cancel">✕</button>
                                             </form>
@@ -425,6 +496,11 @@
             const icon = document.getElementById('toggle-icon');
             content.classList.toggle('collapsed');
             icon.classList.toggle('collapsed');
+        }
+
+        function toggleHistory(id) {
+            const list = document.getElementById('history-' + id);
+            list.classList.toggle('visible');
         }
     </script>
 </body>

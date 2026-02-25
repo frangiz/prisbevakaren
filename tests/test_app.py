@@ -453,3 +453,219 @@ def test_timestamp_filter_months_ago(client: FlaskClient) -> None:
 
     # Should show '3 months ago'
     assert b"3 months ago" in response.data or b"months ago" in response.data
+
+
+# --- Feature: Target Price ---
+
+
+def test_add_url_with_target_price(client: FlaskClient) -> None:
+    """Test adding a URL with a target price."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    response = client.post(
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "group_id": str(group_id),
+            "target_price": "79.90",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"URL added successfully!" in response.data
+
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    assert urls_data[0]["target_price"] == 79.90
+
+
+def test_add_url_without_target_price(client: FlaskClient) -> None:
+    """Test adding a URL without a target price defaults to None."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/item", "group_id": str(group_id)},
+    )
+
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    assert urls_data[0]["target_price"] is None
+
+
+def test_add_url_with_invalid_target_price(client: FlaskClient) -> None:
+    """Test adding a URL with an invalid target price shows error."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    response = client.post(
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "group_id": str(group_id),
+            "target_price": "abc",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"Invalid target price!" in response.data
+
+
+def test_target_reached_indicator(client: FlaskClient) -> None:
+    """Test that target reached indicator shows when price is at or below target."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "group_id": str(group_id),
+            "target_price": "100.00",
+        },
+    )
+
+    # Set current price below target
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 89.00
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    response = client.get("/")
+    assert b"Target reached" in response.data
+
+
+def test_target_not_reached(client: FlaskClient) -> None:
+    """Test that target reached indicator does not show when price is above target."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "group_id": str(group_id),
+            "target_price": "50.00",
+        },
+    )
+
+    # Set current price above target
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 89.00
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    response = client.get("/")
+    assert b"Target reached" not in response.data
+
+
+def test_update_url_preserves_target_price(client: FlaskClient) -> None:
+    """Test that updating a URL preserves target price when not provided."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://shop.com/item1",
+            "group_id": str(group_id),
+            "target_price": "50.00",
+        },
+    )
+
+    url_id = get_url_id_by_url("https://shop.com/item1")
+
+    # Update URL text only (no target_price field in form)
+    client.post(f"/url/update/{url_id}", data={"url": "https://shop.com/item2"})
+
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    assert urls_data[0]["url"] == "https://shop.com/item2"
+    assert urls_data[0]["target_price"] == 50.00
+
+
+# --- Feature: Price History ---
+
+
+def test_price_history_displayed(client: FlaskClient) -> None:
+    """Test that price history is displayed in the UI."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/item", "group_id": str(group_id)},
+    )
+
+    # Manually set price history
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 80.00
+    urls_data[0]["price_history"] = [
+        {"price": 100.0, "timestamp": "2025-12-01T10:00:00+00:00"},
+        {"price": 90.0, "timestamp": "2025-12-10T10:00:00+00:00"},
+        {"price": 80.0, "timestamp": "2025-12-18T10:00:00+00:00"},
+    ]
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    response = client.get("/")
+    assert b"History (3)" in response.data
+
+
+def test_url_update_preserves_price_history(client: FlaskClient) -> None:
+    """Test that updating a URL preserves price history."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/item1", "group_id": str(group_id)},
+    )
+
+    # Manually set price history
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["price_history"] = [
+        {"price": 100.0, "timestamp": "2025-12-01T10:00:00+00:00"},
+    ]
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    url_id = get_url_id_by_url("https://shop.com/item1")
+    client.post(f"/url/update/{url_id}", data={"url": "https://shop.com/item2"})
+
+    urls_data = json.loads(urls_file.read_text())
+    assert urls_data[0]["url"] == "https://shop.com/item2"
+    assert len(urls_data[0]["price_history"]) == 1
+
+
+# --- Feature: Data Export ---
+
+
+def test_export_data_empty(client: FlaskClient) -> None:
+    """Test exporting data when there are no groups or URLs."""
+    response = client.get("/export")
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data == {"groups": [], "urls": []}
+
+
+def test_export_data_with_content(client: FlaskClient) -> None:
+    """Test exporting data with groups and URLs."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "group_id": str(group_id),
+            "target_price": "50.00",
+        },
+    )
+
+    response = client.get("/export")
+    assert response.status_code == 200
+    assert "attachment" in response.headers.get("Content-Disposition", "")
+
+    data = json.loads(response.data)
+    assert len(data["groups"]) == 1
+    assert data["groups"][0]["name"] == "Shopping"
+    assert len(data["urls"]) == 1
+    assert data["urls"][0]["url"] == "https://shop.com/item"
+    assert data["urls"][0]["target_price"] == 50.00

@@ -59,6 +59,9 @@ def test_update_prices_with_price_change(test_db_path: Path) -> None:
     assert urls_data[0]["current_price"] == 120.0
     assert urls_data[0]["previous_price"] == 100.0
     assert urls_data[0]["last_price_change"] != "2025-12-10T00:00:00+00:00"
+    # Verify price history was recorded
+    assert len(urls_data[0]["price_history"]) == 1
+    assert urls_data[0]["price_history"][0]["price"] == 120.0
 
 
 def test_update_prices_no_change(test_db_path: Path) -> None:
@@ -76,6 +79,7 @@ def test_update_prices_no_change(test_db_path: Path) -> None:
             "current_price": 100.0,
             "previous_price": 95.0,
             "last_price_change": initial_timestamp,
+            "price_history": [],
         }
     ]
     urls_file.write_text(json.dumps(initial_data, indent=2))
@@ -97,6 +101,7 @@ def test_update_prices_no_change(test_db_path: Path) -> None:
     assert urls_data[0]["current_price"] == 100.0
     assert urls_data[0]["previous_price"] == 95.0  # Should not change
     assert urls_data[0]["last_price_change"] == initial_timestamp  # Should not change
+    assert urls_data[0]["price_history"] == []  # No history added
 
 
 def test_update_prices_failed_fetch(test_db_path: Path) -> None:
