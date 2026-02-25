@@ -453,3 +453,221 @@ def test_timestamp_filter_months_ago(client: FlaskClient) -> None:
 
     # Should show '3 months ago'
     assert b"3 months ago" in response.data or b"months ago" in response.data
+
+
+# --- Feature: Duplicate URL Prevention ---
+
+
+def test_add_duplicate_url_same_group(client: FlaskClient) -> None:
+    """Test that adding the same URL to the same group is prevented."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    # Add a URL
+    client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(group_id)},
+    )
+
+    # Try adding the same URL again to the same group
+    response = client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(group_id)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"This URL already exists in the selected group!" in response.data
+
+
+def test_add_same_url_different_groups(client: FlaskClient) -> None:
+    """Test that the same URL can be added to different groups."""
+    client.post("/group/add", data={"group_name": "Work"})
+    client.post("/group/add", data={"group_name": "Personal"})
+    work_id = get_group_id_by_name("Work")
+    personal_id = get_group_id_by_name("Personal")
+
+    # Add URL to first group
+    client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(work_id)},
+    )
+
+    # Add same URL to second group - should succeed
+    response = client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(personal_id)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"URL added successfully!" in response.data
+
+
+# --- Feature: Manual Price Refresh ---
+
+
+def test_refresh_url_price_success(client: FlaskClient) -> None:
+    """Test manually refreshing a URL price when scraper returns a price."""
+    from unittest.mock import Mock, patch
+
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/item", "group_id": str(group_id)},
+    )
+    url_id = get_url_id_by_url("https://shop.com/item")
+
+    with patch("src.app.PriceScraper") as mock_scraper_class:
+        mock_scraper = Mock()
+        mock_scraper.__enter__ = Mock(return_value=mock_scraper)
+        mock_scraper.__exit__ = Mock(return_value=False)
+        mock_scraper.fetch_price = Mock(return_value=149.90)
+        mock_scraper_class.return_value = mock_scraper
+
+        response = client.post(f"/url/refresh/{url_id}", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b"Price updated to 149.90 kr!" in response.data
+
+    # Verify price was saved
+    urls_data = json.loads(Path("urls.json").read_text())
+    assert urls_data[0]["current_price"] == 149.90
+
+
+def test_refresh_url_price_failure(client: FlaskClient) -> None:
+    """Test manually refreshing a URL price when scraper fails."""
+    from unittest.mock import Mock, patch
+
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/item", "group_id": str(group_id)},
+    )
+    url_id = get_url_id_by_url("https://shop.com/item")
+
+    with patch("src.app.PriceScraper") as mock_scraper_class:
+        mock_scraper = Mock()
+        mock_scraper.__enter__ = Mock(return_value=mock_scraper)
+        mock_scraper.__exit__ = Mock(return_value=False)
+        mock_scraper.fetch_price = Mock(return_value=None)
+        mock_scraper_class.return_value = mock_scraper
+
+        response = client.post(f"/url/refresh/{url_id}", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b"Failed to fetch price for this URL." in response.data
+
+
+def test_refresh_url_price_unchanged(client: FlaskClient) -> None:
+    """Test refreshing when price hasn't changed."""
+    from unittest.mock import Mock, patch
+
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/item", "group_id": str(group_id)},
+    )
+
+    # Set an initial price
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    urls_data[0]["current_price"] = 99.00
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    url_id = get_url_id_by_url("https://shop.com/item")
+
+    with patch("src.app.PriceScraper") as mock_scraper_class:
+        mock_scraper = Mock()
+        mock_scraper.__enter__ = Mock(return_value=mock_scraper)
+        mock_scraper.__exit__ = Mock(return_value=False)
+        mock_scraper.fetch_price = Mock(return_value=99.00)
+        mock_scraper_class.return_value = mock_scraper
+
+        response = client.post(f"/url/refresh/{url_id}", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b"Price unchanged at 99.00 kr." in response.data
+
+
+def test_refresh_nonexistent_url(client: FlaskClient) -> None:
+    """Test refreshing a URL that doesn't exist."""
+    fake_id = uuid.uuid4()
+    response = client.post(f"/url/refresh/{fake_id}", follow_redirects=True)
+    assert response.status_code == 200
+    assert b"URL not found!" in response.data
+
+
+# --- Feature: URL Sorting by Price ---
+
+
+def test_urls_sorted_by_price(client: FlaskClient) -> None:
+    """Test that URLs within a group are sorted by price, lowest first."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    # Add URLs
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/expensive", "group_id": str(group_id)},
+    )
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/cheap", "group_id": str(group_id)},
+    )
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/mid", "group_id": str(group_id)},
+    )
+
+    # Set prices: expensive=300, cheap=50, mid=150
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    for item in urls_data:
+        if "expensive" in item["url"]:
+            item["current_price"] = 300.00
+        elif "cheap" in item["url"]:
+            item["current_price"] = 50.00
+        elif "mid" in item["url"]:
+            item["current_price"] = 150.00
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    response = client.get("/")
+    html = response.data.decode()
+
+    # Cheap should appear before mid, and mid before expensive
+    cheap_pos = html.index("shop.com/cheap")
+    mid_pos = html.index("shop.com/mid")
+    expensive_pos = html.index("shop.com/expensive")
+    assert cheap_pos < mid_pos < expensive_pos
+
+
+def test_urls_without_price_sorted_last(client: FlaskClient) -> None:
+    """Test that URLs without a price are sorted after those with prices."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/no-price", "group_id": str(group_id)},
+    )
+    client.post(
+        "/url/add",
+        data={"url": "https://shop.com/has-price", "group_id": str(group_id)},
+    )
+
+    # Only set price on the second URL
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    for item in urls_data:
+        if "has-price" in item["url"]:
+            item["current_price"] = 99.00
+    urls_file.write_text(json.dumps(urls_data, indent=2))
+
+    response = client.get("/")
+    html = response.data.decode()
+
+    has_price_pos = html.index("shop.com/has-price")
+    no_price_pos = html.index("shop.com/no-price")
+    assert has_price_pos < no_price_pos

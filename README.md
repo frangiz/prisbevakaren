@@ -7,6 +7,9 @@ A Flask web application for managing URLs organized in groups, with support for 
 - Create and manage groups
 - Add URLs to groups
 - Track current prices and price change history for URLs
+- **Duplicate URL prevention** — the same URL cannot be added to the same group twice
+- **Manual price refresh** — refresh the price for any URL on demand with one click
+- **Price-sorted display** — URLs within each group are sorted by price (lowest first)
 - Simple web interface for all operations
 
 ## Development Setup

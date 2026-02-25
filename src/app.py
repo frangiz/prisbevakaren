@@ -4,7 +4,7 @@ import os
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Union
 
@@ -12,6 +12,8 @@ from flask import Flask, redirect, render_template, request, url_for, flash
 from flask.wrappers import Response
 from typed_json_db import IndexedJsonDB
 from werkzeug.wrappers import Response as WerkzeugResponse
+
+from src.price_scraper import PriceScraper
 
 # Constants
 GROUPS_DB_PATH = Path("groups.json")
@@ -120,6 +122,12 @@ def create_app() -> Flask:
             return False
         return True
 
+    def is_duplicate_url_in_group(url: str, group_id: uuid.UUID) -> bool:
+        """Check if a URL already exists in the given group."""
+        urls_db = get_urls_db()
+        existing = urls_db.find(group_id=group_id)
+        return any(u.url == url for u in existing)
+
     def parse_uuid(uuid_str: str, field_name: str = "ID") -> Optional[uuid.UUID]:
         """Parse UUID from string. Flash error and return None if invalid."""
         try:
@@ -145,10 +153,14 @@ def create_app() -> Flask:
         groups = get_groups_db().all()
         urls = get_urls_db().all()
 
-        # Organize URLs by group
+        # Organize URLs by group and sort by price (lowest first, None last)
         urls_by_group: dict[uuid.UUID, list[URL]] = defaultdict(list)
         for url in urls:
             urls_by_group[url.group_id].append(url)
+        for group_id in urls_by_group:
+            urls_by_group[group_id].sort(
+                key=lambda u: (u.current_price is None, u.current_price or 0)
+            )
 
         return render_template("index.html", groups=groups, urls_by_group=urls_by_group)
 
@@ -229,6 +241,10 @@ def create_app() -> Flask:
         if not validate_group_exists(group_id):
             return redirect(url_for("index"))
 
+        if is_duplicate_url_in_group(url_input, group_id):
+            flash("This URL already exists in the selected group!", FLASH_ERROR)
+            return redirect(url_for("index"))
+
         new_url = URL(
             id=uuid.uuid4(),
             url=url_input,
@@ -265,6 +281,33 @@ def create_app() -> Flask:
             flash("URL deleted successfully!", FLASH_SUCCESS)
         else:
             flash("URL not found!", FLASH_ERROR)
+        return redirect(url_for("index"))
+
+    @app.route("/url/refresh/<uuid:url_id>", methods=["POST"])
+    def refresh_url_price(url_id: uuid.UUID) -> Union[Response, WerkzeugResponse]:
+        """Manually refresh the price for a single URL."""
+        urls_db = get_urls_db()
+        url_obj = urls_db.get(url_id)
+        if not url_obj:
+            flash("URL not found!", FLASH_ERROR)
+            return redirect(url_for("index"))
+
+        with PriceScraper() as scraper:
+            new_price = scraper.fetch_price(url_obj.url)
+
+        if new_price is None:
+            flash("Failed to fetch price for this URL.", FLASH_ERROR)
+            return redirect(url_for("index"))
+
+        if url_obj.current_price != new_price:
+            url_obj.previous_price = url_obj.current_price
+            url_obj.current_price = new_price
+            url_obj.last_price_change = datetime.now(timezone.utc).isoformat()
+            urls_db.update(url_obj)
+            flash(f"Price updated to {new_price:.2f} kr!", FLASH_SUCCESS)
+        else:
+            flash(f"Price unchanged at {new_price:.2f} kr.", FLASH_SUCCESS)
+
         return redirect(url_for("index"))
 
     return app
