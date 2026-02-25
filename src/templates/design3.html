@@ -477,9 +477,9 @@
                                                 {% if url.previous_price is not none and url.previous_price != url.current_price %}
                                                     {% set diff = url.current_price - url.previous_price %}
                                                     {% if diff > 0 %}
-                                                        <span class="price-up">↑ +{{ "%.2f"|format(diff) }}</span>
+                                                        <span class="price-up">(+{{ "%.2f"|format(diff) }} kr)</span>
                                                     {% else %}
-                                                        <span class="price-down">↓ {{ "%.2f"|format(diff) }}</span>
+                                                        <span class="price-down">({{ "%.2f"|format(diff) }} kr)</span>
                                                     {% endif %}
                                                 {% endif %}
                                             </span>
