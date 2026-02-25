@@ -7,9 +7,6 @@ A Flask web application for managing URLs organized in groups, with support for 
 - Create and manage groups
 - Add URLs to groups
 - Track current prices and price change history for URLs
-- **Price history** — every price change is recorded with a timestamp for trend analysis
-- **Target price alerts** — set a desired price per URL and see a visual indicator when the price drops to or below it
-- **Data export** — download all groups and URLs as a JSON file for backup
 - Simple web interface for all operations
 
 ## Development Setup

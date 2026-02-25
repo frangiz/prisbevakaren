@@ -3,12 +3,12 @@
 import os
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
 
-from flask import Flask, jsonify, redirect, render_template, request, url_for, flash
+from flask import Flask, redirect, render_template, request, url_for, flash
 from flask.wrappers import Response
 from typed_json_db import IndexedJsonDB
 from werkzeug.wrappers import Response as WerkzeugResponse
@@ -38,8 +38,6 @@ class URL:
     current_price: Optional[float] = None
     previous_price: Optional[float] = None
     last_price_change: Optional[str] = None  # ISO format datetime string
-    price_history: list[dict[str, object]] = field(default_factory=list)
-    target_price: Optional[float] = None
 
 
 def create_app() -> Flask:
@@ -139,8 +137,6 @@ def create_app() -> Flask:
             current_price=existing_url.current_price,
             previous_price=existing_url.previous_price,
             last_price_change=existing_url.last_price_change,
-            price_history=existing_url.price_history,
-            target_price=existing_url.target_price,
         )
 
     @app.route("/")
@@ -233,20 +229,10 @@ def create_app() -> Flask:
         if not validate_group_exists(group_id):
             return redirect(url_for("index"))
 
-        target_price_str = request.form.get("target_price", "").strip()
-        target_price: Optional[float] = None
-        if target_price_str:
-            try:
-                target_price = float(target_price_str)
-            except ValueError:
-                flash("Invalid target price!", FLASH_ERROR)
-                return redirect(url_for("index"))
-
         new_url = URL(
             id=uuid.uuid4(),
             url=url_input,
             group_id=group_id,
-            target_price=target_price,
         )
         urls_db = get_urls_db()
         urls_db.add(new_url)
@@ -267,17 +253,6 @@ def create_app() -> Flask:
             return redirect(url_for("index"))
 
         updated_url = create_updated_url(existing_url, url_input)
-
-        target_price_str = request.form.get("target_price", "").strip()
-        if target_price_str:
-            try:
-                updated_url.target_price = float(target_price_str)
-            except ValueError:
-                flash("Invalid target price!", FLASH_ERROR)
-                return redirect(url_for("index"))
-        elif "target_price" in request.form:
-            updated_url.target_price = None
-
         urls_db.update(updated_url)
         flash("URL updated successfully!", FLASH_SUCCESS)
         return redirect(url_for("index"))
@@ -291,28 +266,5 @@ def create_app() -> Flask:
         else:
             flash("URL not found!", FLASH_ERROR)
         return redirect(url_for("index"))
-
-    @app.route("/export")
-    def export_data() -> Response:
-        """Export all groups and URLs as a JSON file."""
-        groups = [{"id": str(g.id), "name": g.name} for g in get_groups_db().all()]
-        urls = []
-        for u in get_urls_db().all():
-            url_data: dict[str, object] = {
-                "id": str(u.id),
-                "url": u.url,
-                "group_id": str(u.group_id),
-                "current_price": u.current_price,
-                "previous_price": u.previous_price,
-                "last_price_change": u.last_price_change,
-                "price_history": u.price_history,
-                "target_price": u.target_price,
-            }
-            urls.append(url_data)
-        response = jsonify({"groups": groups, "urls": urls})
-        response.headers["Content-Disposition"] = (
-            "attachment; filename=prisbevakaren-export.json"
-        )
-        return response
 
     return app

@@ -45,11 +45,7 @@ def update_all_prices() -> None:
                 print(f"  📈 Price changed: {url_obj.current_price} → {new_price}")
                 url_obj.previous_price = url_obj.current_price
                 url_obj.current_price = new_price
-                timestamp = datetime.now(timezone.utc).isoformat()
-                url_obj.last_price_change = timestamp
-                url_obj.price_history.append(
-                    {"price": new_price, "timestamp": timestamp}
-                )
+                url_obj.last_price_change = datetime.now(timezone.utc).isoformat()
                 urls_db.update(url_obj)
                 updated += 1
                 print(f"  ✅ Updated in database")
