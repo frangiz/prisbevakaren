@@ -36,6 +36,7 @@ class URL:
     id: uuid.UUID
     url: str
     group_id: uuid.UUID
+    name: str = ""
     current_price: Optional[float] = None
     previous_price: Optional[float] = None
     last_price_change: Optional[str] = None  # ISO format datetime string
@@ -136,12 +137,15 @@ def create_app() -> Flask:
             flash(f"Invalid {field_name}!", FLASH_ERROR)
             return None
 
-    def create_updated_url(existing_url: URL, new_url_string: str) -> URL:
+    def create_updated_url(
+        existing_url: URL, new_url_string: str, new_name: str
+    ) -> URL:
         """Create an updated URL object, preserving price fields from existing URL."""
         return URL(
             id=existing_url.id,
             url=new_url_string,
             group_id=existing_url.group_id,
+            name=new_name,
             current_price=existing_url.current_price,
             previous_price=existing_url.previous_price,
             last_price_change=existing_url.last_price_change,
@@ -221,9 +225,13 @@ def create_app() -> Flask:
     def add_url() -> Union[Response, WerkzeugResponse]:
         """Add a new URL to a group."""
         url_input = request.form.get("url", "").strip()
+        url_name = request.form.get("name", "").strip()
         group_id_str = request.form.get("group_id", "")
 
         if not validate_non_empty_input(url_input, "URL"):
+            return redirect(url_for("index"))
+
+        if not validate_non_empty_input(url_name, "Name"):
             return redirect(url_for("index"))
 
         if not group_id_str:
@@ -245,6 +253,7 @@ def create_app() -> Flask:
             id=uuid.uuid4(),
             url=url_input,
             group_id=group_id,
+            name=url_name,
         )
         urls_db = get_urls_db()
         urls_db.add(new_url)
@@ -255,7 +264,11 @@ def create_app() -> Flask:
     def update_url(url_id: uuid.UUID) -> Union[Response, WerkzeugResponse]:
         """Update an existing URL."""
         url_input = request.form.get("url", "").strip()
+        url_name = request.form.get("name", "").strip()
         if not validate_non_empty_input(url_input, "URL"):
+            return redirect(url_for("index"))
+
+        if not validate_non_empty_input(url_name, "Name"):
             return redirect(url_for("index"))
 
         urls_db = get_urls_db()
@@ -264,7 +277,7 @@ def create_app() -> Flask:
             flash("URL not found!", FLASH_ERROR)
             return redirect(url_for("index"))
 
-        updated_url = create_updated_url(existing_url, url_input)
+        updated_url = create_updated_url(existing_url, url_input, url_name)
         urls_db.update(updated_url)
         flash("URL updated successfully!", FLASH_SUCCESS)
         return redirect(url_for("index"))

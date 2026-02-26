@@ -131,7 +131,12 @@ def test_delete_group_with_urls(client: FlaskClient) -> None:
 
     # Add a URL to the group
     client.post(
-        "/url/add", data={"url": "https://example.com", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://example.com",
+            "name": "Example",
+            "group_id": str(group_id),
+        },
     )
 
     # Try to delete the group
@@ -151,18 +156,24 @@ def test_add_url_to_group(client: FlaskClient) -> None:
     # Add a URL
     response = client.post(
         "/url/add",
-        data={"url": "https://example.com", "group_id": str(group_id)},
+        data={
+            "url": "https://example.com",
+            "name": "Example Site",
+            "group_id": str(group_id),
+        },
         follow_redirects=True,
     )
     assert response.status_code == 200
     assert b"URL added successfully!" in response.data
-    assert b"https://example.com" in response.data
+    assert b"Example Site" in response.data
 
 
 def test_add_url_without_group(client: FlaskClient) -> None:
     """Test adding a URL without selecting a group."""
     response = client.post(
-        "/url/add", data={"url": "https://example.com"}, follow_redirects=True
+        "/url/add",
+        data={"url": "https://example.com", "name": "Example"},
+        follow_redirects=True,
     )
     assert response.status_code == 200
     assert b"Please select a group!" in response.data
@@ -177,10 +188,49 @@ def test_add_empty_url(client: FlaskClient) -> None:
     group_id = get_group_id_by_name("Work")
 
     response = client.post(
-        "/url/add", data={"url": "", "group_id": str(group_id)}, follow_redirects=True
+        "/url/add",
+        data={"url": "", "name": "Example", "group_id": str(group_id)},
+        follow_redirects=True,
     )
     assert response.status_code == 200
     assert b"URL cannot be empty!" in response.data
+
+
+def test_add_url_empty_name(client: FlaskClient) -> None:
+    """Test adding a URL with an empty name."""
+    client.post("/group/add", data={"group_name": "Work"})
+    group_id = get_group_id_by_name("Work")
+
+    response = client.post(
+        "/url/add",
+        data={"url": "https://example.com", "name": "", "group_id": str(group_id)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"Name cannot be empty!" in response.data
+
+
+def test_update_url_empty_name(client: FlaskClient) -> None:
+    """Test updating a URL with an empty name."""
+    client.post("/group/add", data={"group_name": "Work"})
+    group_id = get_group_id_by_name("Work")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://example.com",
+            "name": "Example",
+            "group_id": str(group_id),
+        },
+    )
+    url_id = get_url_id_by_url("https://example.com")
+
+    response = client.post(
+        f"/url/update/{url_id}",
+        data={"url": "https://example.com", "name": ""},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"Name cannot be empty!" in response.data
 
 
 def test_update_url(client: FlaskClient) -> None:
@@ -189,7 +239,12 @@ def test_update_url(client: FlaskClient) -> None:
     client.post("/group/add", data={"group_name": "Work"})
     group_id = get_group_id_by_name("Work")
     client.post(
-        "/url/add", data={"url": "https://example.com", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://example.com",
+            "name": "Example",
+            "group_id": str(group_id),
+        },
     )
 
     # Get the URL ID
@@ -198,7 +253,7 @@ def test_update_url(client: FlaskClient) -> None:
     # Update the URL
     response = client.post(
         f"/url/update/{url_id}",
-        data={"url": "https://updated.com"},
+        data={"url": "https://updated.com", "name": "Updated"},
         follow_redirects=True,
     )
     assert response.status_code == 200
@@ -211,7 +266,12 @@ def test_delete_url(client: FlaskClient) -> None:
     client.post("/group/add", data={"group_name": "Work"})
     group_id = get_group_id_by_name("Work")
     client.post(
-        "/url/add", data={"url": "https://example.com", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://example.com",
+            "name": "Example",
+            "group_id": str(group_id),
+        },
     )
 
     # Get the URL ID
@@ -234,18 +294,37 @@ def test_multiple_groups_and_urls(client: FlaskClient) -> None:
     personal_id = get_group_id_by_name("Personal")
 
     # Add URLs to different groups
-    client.post("/url/add", data={"url": "https://work1.com", "group_id": str(work_id)})
-    client.post("/url/add", data={"url": "https://work2.com", "group_id": str(work_id)})
     client.post(
-        "/url/add", data={"url": "https://personal1.com", "group_id": str(personal_id)}
+        "/url/add",
+        data={
+            "url": "https://work1.com",
+            "name": "Work Item 1",
+            "group_id": str(work_id),
+        },
+    )
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://work2.com",
+            "name": "Work Item 2",
+            "group_id": str(work_id),
+        },
+    )
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://personal1.com",
+            "name": "Personal Item 1",
+            "group_id": str(personal_id),
+        },
     )
 
     response = client.get("/")
     assert b"Work" in response.data
     assert b"Personal" in response.data
-    assert b"https://work1.com" in response.data
-    assert b"https://work2.com" in response.data
-    assert b"https://personal1.com" in response.data
+    assert b"Work Item 1" in response.data
+    assert b"Work Item 2" in response.data
+    assert b"Personal Item 1" in response.data
 
 
 def test_url_with_price_fields(client: FlaskClient) -> None:
@@ -258,7 +337,12 @@ def test_url_with_price_fields(client: FlaskClient) -> None:
 
     # Add a URL
     client.post(
-        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "name": "Shop Item",
+            "group_id": str(group_id),
+        },
     )
 
     # Manually update the JSON to include price fields (simulating script update)
@@ -280,13 +364,20 @@ def test_url_without_price_fields(client: FlaskClient) -> None:
     client.post("/group/add", data={"group_name": "Work"})
     group_id = get_group_id_by_name("Work")
     client.post(
-        "/url/add", data={"url": "https://example.com", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://example.com",
+            "name": "Example",
+            "group_id": str(group_id),
+        },
     )
 
     # Get the page
     response = client.get("/")
 
-    # URL should be displayed
+    # Name should be displayed
+    assert b"Example" in response.data
+    # URL should be displayed as a link
     assert b"https://example.com" in response.data
     # But price fields should not be shown since they're None
     assert b'class="price-tag"' not in response.data
@@ -299,7 +390,12 @@ def test_url_update_preserves_price_fields(client: FlaskClient) -> None:
     client.post("/group/add", data={"group_name": "Shopping"})
     group_id = get_group_id_by_name("Shopping")
     client.post(
-        "/url/add", data={"url": "https://shop.com/item1", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://shop.com/item1",
+            "name": "Shop Item",
+            "group_id": str(group_id),
+        },
     )
 
     # Manually add price fields (simulating script update)
@@ -314,11 +410,15 @@ def test_url_update_preserves_price_fields(client: FlaskClient) -> None:
     url_id = get_url_id_by_url("https://shop.com/item1")
 
     # Update the URL
-    client.post(f"/url/update/{url_id}", data={"url": "https://shop.com/item2"})
+    client.post(
+        f"/url/update/{url_id}",
+        data={"url": "https://shop.com/item2", "name": "Updated Item"},
+    )
 
     # Verify price fields are preserved
     urls_data = json.loads(urls_file.read_text())
     assert urls_data[0]["url"] == "https://shop.com/item2"
+    assert urls_data[0]["name"] == "Updated Item"
     assert urls_data[0]["current_price"] == 49.99
     assert urls_data[0]["previous_price"] == 44.99
     assert urls_data[0]["last_price_change"] == "2025-12-15"
@@ -330,7 +430,12 @@ def test_url_with_previous_price_shows_diff(client: FlaskClient) -> None:
     client.post("/group/add", data={"group_name": "Shopping"})
     group_id = get_group_id_by_name("Shopping")
     client.post(
-        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "name": "Shop Item",
+            "group_id": str(group_id),
+        },
     )
 
     # Manually add price fields showing a price increase
@@ -356,7 +461,12 @@ def test_url_with_previous_price_decrease(client: FlaskClient) -> None:
     client.post("/group/add", data={"group_name": "Shopping"})
     group_id = get_group_id_by_name("Shopping")
     client.post(
-        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "name": "Shop Item",
+            "group_id": str(group_id),
+        },
     )
 
     # Manually add price fields showing a price decrease
@@ -384,7 +494,12 @@ def test_timestamp_filter_today(client: FlaskClient, app: Flask) -> None:
     client.post("/group/add", data={"group_name": "Shopping"})
     group_id = get_group_id_by_name("Shopping")
     client.post(
-        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "name": "Shop Item",
+            "group_id": str(group_id),
+        },
     )
 
     # Set last_price_change to today
@@ -409,7 +524,12 @@ def test_timestamp_filter_days_ago(client: FlaskClient) -> None:
     client.post("/group/add", data={"group_name": "Shopping"})
     group_id = get_group_id_by_name("Shopping")
     client.post(
-        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "name": "Shop Item",
+            "group_id": str(group_id),
+        },
     )
 
     # Set last_price_change to 5 days ago
@@ -435,7 +555,12 @@ def test_timestamp_filter_months_ago(client: FlaskClient) -> None:
     client.post("/group/add", data={"group_name": "Shopping"})
     group_id = get_group_id_by_name("Shopping")
     client.post(
-        "/url/add", data={"url": "https://shop.com/item", "group_id": str(group_id)}
+        "/url/add",
+        data={
+            "url": "https://shop.com/item",
+            "name": "Shop Item",
+            "group_id": str(group_id),
+        },
     )
 
     # Set last_price_change to 90 days ago (3 months)
@@ -464,13 +589,21 @@ def test_add_duplicate_url_same_group(client: FlaskClient) -> None:
     # Add a URL
     client.post(
         "/url/add",
-        data={"url": "https://example.com/product", "group_id": str(group_id)},
+        data={
+            "url": "https://example.com/product",
+            "name": "Product",
+            "group_id": str(group_id),
+        },
     )
 
     # Try adding the same URL again to the same group
     response = client.post(
         "/url/add",
-        data={"url": "https://example.com/product", "group_id": str(group_id)},
+        data={
+            "url": "https://example.com/product",
+            "name": "Product Again",
+            "group_id": str(group_id),
+        },
         follow_redirects=True,
     )
     assert response.status_code == 200
@@ -484,12 +617,20 @@ def test_add_duplicate_url_with_trailing_slash(client: FlaskClient) -> None:
 
     client.post(
         "/url/add",
-        data={"url": "https://example.com/product", "group_id": str(group_id)},
+        data={
+            "url": "https://example.com/product",
+            "name": "Product",
+            "group_id": str(group_id),
+        },
     )
 
     response = client.post(
         "/url/add",
-        data={"url": "https://example.com/product/", "group_id": str(group_id)},
+        data={
+            "url": "https://example.com/product/",
+            "name": "Product Again",
+            "group_id": str(group_id),
+        },
         follow_redirects=True,
     )
     assert response.status_code == 200
@@ -506,13 +647,21 @@ def test_add_same_url_different_groups(client: FlaskClient) -> None:
     # Add URL to first group
     client.post(
         "/url/add",
-        data={"url": "https://example.com/product", "group_id": str(work_id)},
+        data={
+            "url": "https://example.com/product",
+            "name": "Product",
+            "group_id": str(work_id),
+        },
     )
 
     # Add same URL to second group - should succeed
     response = client.post(
         "/url/add",
-        data={"url": "https://example.com/product", "group_id": str(personal_id)},
+        data={
+            "url": "https://example.com/product",
+            "name": "Product",
+            "group_id": str(personal_id),
+        },
         follow_redirects=True,
     )
     assert response.status_code == 200

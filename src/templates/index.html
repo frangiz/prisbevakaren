@@ -298,14 +298,18 @@
         .url-content { display: flex; align-items: center; gap: 14px; }
         .url-info { flex: 1; min-width: 0; }
         .url-link {
-            color: var(--text);
+            color: var(--text-muted);
             text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 12px;
             word-break: break-all;
             transition: color 0.15s;
         }
         .url-link:hover { color: var(--accent); }
+        .url-name {
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+        }
         .url-meta {
             display: flex;
             gap: 20px;
@@ -405,7 +409,8 @@
                 <span class="action-label">Add URL to Track</span>
             </div>
             <form method="POST" action="{{ url_for('add_url') }}" class="inline-form">
-                <input type="text" name="url" placeholder="Paste a product URL..." required autofocus>
+                <input type="text" name="name" placeholder="Product name..." required>
+                <input type="text" name="url" placeholder="Paste a product URL..." required>
                 <select name="group_id" required>
                     <option value="">Select group</option>
                     {% for group in groups %}
@@ -468,7 +473,10 @@
                             <div class="url-display">
                                 <div class="url-content">
                                     <div class="url-info">
-                                        <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-link">{{ url.url }}</a>
+                                        <span class="url-name">{{ url.name }}</span>
+                                        <div class="url-meta">
+                                            <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-link">{{ url.url }}</a>
+                                        </div>
                                         {% if url.current_price is not none or url.last_price_change is not none %}
                                         <div class="url-meta">
                                             {% if url.current_price is not none %}
@@ -500,6 +508,7 @@
                             </div>
                             <div class="url-edit">
                                 <form method="POST" action="{{ url_for('update_url', url_id=url.id) }}" style="display:flex;gap:8px;width:100%">
+                                    <input type="text" name="name" value="{{ url.name }}" placeholder="Product name..." required>
                                     <input type="text" name="url" value="{{ url.url }}" required>
                                     <button type="submit" class="btn btn-success btn-icon" title="Save">✓</button>
                                     <button type="button" onclick="toggleEdit('{{ url.id }}')" class="btn btn-outline btn-icon" title="Cancel">✕</button>

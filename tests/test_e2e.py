@@ -25,8 +25,9 @@ def _create_group(page: Page, name: str) -> None:
     page.get_by_role("button", name="Create Group").click()
 
 
-def _add_url(page: Page, url: str, group_name: str) -> None:
+def _add_url(page: Page, url: str, group_name: str, name: str = "Test Product") -> None:
     """Helper to add a URL to a group via the UI."""
+    page.get_by_placeholder("Product name...").fill(name)
     page.get_by_placeholder(re.compile("product URL")).fill(url)
     page.get_by_role("combobox").select_option(label=group_name)
     page.get_by_role("button", name="Track").click()
@@ -47,6 +48,7 @@ def _set_price_fields(
         id=url_entry.id,
         url=url_entry.url,
         group_id=url_entry.group_id,
+        name=url_entry.name,
         current_price=current_price,
         previous_price=previous_price,
         last_price_change=last_price_change,
