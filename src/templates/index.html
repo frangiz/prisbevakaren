@@ -298,11 +298,13 @@
         .url-content { display: flex; align-items: center; gap: 14px; }
         .url-info { flex: 1; min-width: 0; }
         .url-link {
+            display: block;
             color: var(--text-muted);
             text-decoration: none;
             font-size: 12px;
             word-break: break-all;
             transition: color 0.15s;
+            margin-top: 2px;
         }
         .url-link:hover { color: var(--accent); }
         .url-name {
@@ -474,9 +476,7 @@
                                 <div class="url-content">
                                     <div class="url-info">
                                         <span class="url-name">{{ url.name }}</span>
-                                        <div class="url-meta">
-                                            <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-link">{{ url.url }}</a>
-                                        </div>
+                                        <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-link">{{ url.url }}</a>
                                         {% if url.current_price is not none or url.last_price_change is not none %}
                                         <div class="url-meta">
                                             {% if url.current_price is not none %}
