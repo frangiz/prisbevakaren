@@ -15,21 +15,21 @@ from tests.conftest import LiveServer
 
 def _expand_add_group_section(page: Page) -> None:
     """Expand the collapsible Add Group section."""
-    page.locator(".collapsible-header").click()
+    page.locator(".collapse-trigger").click()
 
 
 def _create_group(page: Page, name: str) -> None:
     """Helper to create a group via the UI."""
     _expand_add_group_section(page)
-    page.get_by_placeholder("Enter group name").fill(name)
-    page.get_by_role("button", name="Add Group").click()
+    page.get_by_placeholder("Enter group name...").fill(name)
+    page.get_by_role("button", name="Create Group").click()
 
 
 def _add_url(page: Page, url: str, group_name: str) -> None:
     """Helper to add a URL to a group via the UI."""
-    page.get_by_placeholder(re.compile("Enter a URL")).fill(url)
+    page.get_by_placeholder(re.compile("product URL")).fill(url)
     page.get_by_role("combobox").select_option(label=group_name)
-    page.get_by_role("button", name="Add URL").click()
+    page.get_by_role("button", name="Track").click()
 
 
 def _set_price_fields(
@@ -57,9 +57,9 @@ def _set_price_fields(
 def test_index_page_loads(page: Page, live_server: LiveServer) -> None:
     """Test that the index page loads and shows the empty state."""
     page.goto(live_server.url)
-    expect(page).to_have_title("URL Manager with Groups")
-    expect(page.locator("h1")).to_have_text("Prisbevakaren")
-    expect(page.get_by_text("No Groups yet")).to_be_visible()
+    expect(page).to_have_title("Prisbevakaren")
+    expect(page.locator("h1")).to_have_text("Price Tracker")
+    expect(page.get_by_text("No groups yet")).to_be_visible()
 
 
 def test_add_group(page: Page, live_server: LiveServer) -> None:
@@ -80,10 +80,10 @@ def test_add_group_empty_name(page: Page, live_server: LiveServer) -> None:
     _expand_add_group_section(page)
 
     # Remove the required attribute to allow submitting empty form
-    page.get_by_placeholder("Enter group name").evaluate(
+    page.get_by_placeholder("Enter group name...").evaluate(
         "el => el.removeAttribute('required')"
     )
-    page.get_by_role("button", name="Add Group").click()
+    page.get_by_role("button", name="Create Group").click()
 
     # Verify error is shown
     expect(page.get_by_text("Group name cannot be empty!")).to_be_visible()
@@ -121,11 +121,11 @@ def test_delete_empty_group(page: Page, live_server: LiveServer) -> None:
 
     # Delete the group (accept the confirmation dialog)
     page.on("dialog", lambda dialog: dialog.accept())
-    page.locator(".group-header").get_by_title("Delete").click()
+    page.locator(".group-top").get_by_title("Delete").click()
 
     # Verify group was deleted
     expect(page.get_by_text("Group deleted successfully!")).to_be_visible()
-    expect(page.get_by_text("No Groups yet")).to_be_visible()
+    expect(page.get_by_text("No groups yet")).to_be_visible()
 
 
 def test_cannot_delete_group_with_urls(page: Page, live_server: LiveServer) -> None:
@@ -136,7 +136,7 @@ def test_cannot_delete_group_with_urls(page: Page, live_server: LiveServer) -> N
 
     # Try to delete the group (accept the confirmation dialog)
     page.on("dialog", lambda dialog: dialog.accept())
-    page.locator(".group-header").get_by_title("Delete").click()
+    page.locator(".group-top").get_by_title("Delete").click()
 
     # Verify error is shown
     expect(page.get_by_text("Cannot delete group with URLs!")).to_be_visible()
@@ -192,7 +192,6 @@ def test_url_displays_current_price(page: Page, live_server: LiveServer) -> None
     # Reload the page to see the price
     page.reload()
 
-    expect(page.get_by_text("Current Price:")).to_be_visible()
     expect(page.get_by_text("99.99 kr")).to_be_visible()
 
 
@@ -251,7 +250,7 @@ def test_url_displays_last_price_change(page: Page, live_server: LiveServer) -> 
 
     page.reload()
 
-    expect(page.get_by_text("Last Change:")).to_be_visible()
+    expect(page.get_by_text("Updated")).to_be_visible()
     expect(page.get_by_text("5 days ago")).to_be_visible()
 
 
@@ -265,5 +264,5 @@ def test_url_without_price_shows_no_price_info(
 
     # Verify the URL is shown but no price info appears
     expect(page.get_by_text("https://example.com")).to_be_visible()
-    expect(page.get_by_text("Current Price:")).not_to_be_visible()
-    expect(page.get_by_text("Last Change:")).not_to_be_visible()
+    expect(page.locator(".price-tag")).not_to_be_visible()
+    expect(page.get_by_text("Updated")).not_to_be_visible()

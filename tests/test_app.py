@@ -69,7 +69,7 @@ def test_index_empty(client: FlaskClient) -> None:
     """Test that index page loads with empty state."""
     response = client.get("/")
     assert response.status_code == 200
-    assert b"No Groups yet" in response.data
+    assert b"No groups yet" in response.data
 
 
 def test_add_group(client: FlaskClient) -> None:
@@ -270,10 +270,8 @@ def test_url_with_price_fields(client: FlaskClient) -> None:
 
     # Verify the price fields are displayed in the UI (database reloads on each request)
     response = client.get("/")
-    assert b"Current Price" in response.data
     assert b"99.99" in response.data
-    assert b"Last Change" in response.data
-    assert b"2025-12-18" in response.data
+    assert b"Updated" in response.data
 
 
 def test_url_without_price_fields(client: FlaskClient) -> None:
@@ -291,8 +289,8 @@ def test_url_without_price_fields(client: FlaskClient) -> None:
     # URL should be displayed
     assert b"https://example.com" in response.data
     # But price fields should not be shown since they're None
-    assert b"Current Price" not in response.data
-    assert b"Last Change" not in response.data
+    assert b'class="price-tag"' not in response.data
+    assert b"Updated" not in response.data
 
 
 def test_url_update_preserves_price_fields(client: FlaskClient) -> None:
