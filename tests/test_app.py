@@ -517,3 +517,135 @@ def test_add_same_url_different_groups(client: FlaskClient) -> None:
     )
     assert response.status_code == 200
     assert b"URL added successfully!" in response.data
+
+
+# --- Feature: Product Name ---
+
+
+def test_add_url_with_name(client: FlaskClient) -> None:
+    """Test adding a URL with an optional product name."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    response = client.post(
+        "/url/add",
+        data={
+            "url": "https://example.com/product",
+            "group_id": str(group_id),
+            "name": "My Product",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"URL added successfully!" in response.data
+    assert b"My Product" in response.data
+
+
+def test_add_url_without_name(client: FlaskClient) -> None:
+    """Test adding a URL without a product name shows URL instead."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    response = client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(group_id)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"https://example.com/product" in response.data
+
+
+def test_update_url_with_name(client: FlaskClient) -> None:
+    """Test updating a URL to add a product name."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add", data={"url": "https://example.com", "group_id": str(group_id)}
+    )
+
+    url_id = get_url_id_by_url("https://example.com")
+
+    response = client.post(
+        f"/url/update/{url_id}",
+        data={"url": "https://example.com", "name": "My Product"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"URL updated successfully!" in response.data
+    assert b"My Product" in response.data
+
+
+def test_update_url_preserves_name(client: FlaskClient) -> None:
+    """Test that updating a URL name is stored in the database."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://example.com",
+            "group_id": str(group_id),
+            "name": "Original Name",
+        },
+    )
+
+    # Verify name is stored
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    assert urls_data[0]["name"] == "Original Name"
+
+    url_id = get_url_id_by_url("https://example.com")
+
+    # Update with new name
+    client.post(
+        f"/url/update/{url_id}",
+        data={"url": "https://example.com", "name": "Updated Name"},
+    )
+
+    urls_data = json.loads(urls_file.read_text())
+    assert urls_data[0]["name"] == "Updated Name"
+
+
+def test_update_url_clear_name(client: FlaskClient) -> None:
+    """Test that clearing the name field removes the name."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://example.com",
+            "group_id": str(group_id),
+            "name": "My Product",
+        },
+    )
+
+    url_id = get_url_id_by_url("https://example.com")
+
+    # Clear the name
+    client.post(
+        f"/url/update/{url_id}",
+        data={"url": "https://example.com", "name": ""},
+    )
+
+    urls_file = Path("urls.json")
+    urls_data = json.loads(urls_file.read_text())
+    assert urls_data[0]["name"] is None
+
+
+def test_url_name_displayed_with_url_as_subtitle(client: FlaskClient) -> None:
+    """Test that when a name is set, URL appears as a subtitle link."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://example.com/product",
+            "group_id": str(group_id),
+            "name": "Cool Product",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/")
+    assert b"Cool Product" in response.data
+    assert b"url-subtitle" in response.data
+    assert b"url-small-link" in response.data
