@@ -451,3 +451,69 @@ def test_timestamp_filter_months_ago(client: FlaskClient) -> None:
 
     # Should show '3 months ago'
     assert b"3 months ago" in response.data or b"months ago" in response.data
+
+
+# --- Feature: Duplicate URL Prevention ---
+
+
+def test_add_duplicate_url_same_group(client: FlaskClient) -> None:
+    """Test that adding the same URL to the same group is prevented."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    # Add a URL
+    client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(group_id)},
+    )
+
+    # Try adding the same URL again to the same group
+    response = client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(group_id)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"This URL already exists in the selected group!" in response.data
+
+
+def test_add_duplicate_url_with_trailing_slash(client: FlaskClient) -> None:
+    """Test that adding a URL with a trailing slash is detected as duplicate."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(group_id)},
+    )
+
+    response = client.post(
+        "/url/add",
+        data={"url": "https://example.com/product/", "group_id": str(group_id)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"This URL already exists in the selected group!" in response.data
+
+
+def test_add_same_url_different_groups(client: FlaskClient) -> None:
+    """Test that the same URL can be added to different groups."""
+    client.post("/group/add", data={"group_name": "Work"})
+    client.post("/group/add", data={"group_name": "Personal"})
+    work_id = get_group_id_by_name("Work")
+    personal_id = get_group_id_by_name("Personal")
+
+    # Add URL to first group
+    client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(work_id)},
+    )
+
+    # Add same URL to second group - should succeed
+    response = client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(personal_id)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"URL added successfully!" in response.data

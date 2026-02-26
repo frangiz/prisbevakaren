@@ -13,6 +13,7 @@ from flask.wrappers import Response
 from typed_json_db import IndexedJsonDB
 from werkzeug.wrappers import Response as WerkzeugResponse
 
+
 # Constants
 GROUPS_DB_PATH = Path("groups.json")
 URLS_DB_PATH = Path("urls.json")
@@ -119,6 +120,13 @@ def create_app() -> Flask:
             flash("Group does not exist!", FLASH_ERROR)
             return False
         return True
+
+    def is_duplicate_url_in_group(url: str, group_id: uuid.UUID) -> bool:
+        """Check if a URL already exists in the given group."""
+        urls_db = get_urls_db()
+        existing = urls_db.find(group_id=group_id)
+        normalized = url.rstrip("/")
+        return any(u.url.rstrip("/") == normalized for u in existing)
 
     def parse_uuid(uuid_str: str, field_name: str = "ID") -> Optional[uuid.UUID]:
         """Parse UUID from string. Flash error and return None if invalid."""
@@ -227,6 +235,10 @@ def create_app() -> Flask:
             return redirect(url_for("index"))
 
         if not validate_group_exists(group_id):
+            return redirect(url_for("index"))
+
+        if is_duplicate_url_in_group(url_input, group_id):
+            flash("This URL already exists in the selected group!", FLASH_ERROR)
             return redirect(url_for("index"))
 
         new_url = URL(
