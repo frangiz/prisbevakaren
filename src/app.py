@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
-from urllib.parse import urlparse
 
 from flask import Flask, redirect, render_template, request, url_for, flash
 from flask.wrappers import Response
@@ -87,22 +86,6 @@ def create_app() -> Flask:
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except (ValueError, AttributeError):
             return iso_string  # Return original if parsing fails
-
-    @app.template_filter("derive_name_from_url")
-    def derive_name_from_url(url_string: str) -> str:
-        """Derive a readable product name from a URL.
-
-        Extracts the domain and last meaningful path segment,
-        formatting them into a human-readable label.
-        """
-        parsed = urlparse(url_string)
-        domain = parsed.netloc.replace("www.", "")
-        path_parts = [p for p in parsed.path.strip("/").split("/") if p]
-        if path_parts:
-            last_part = path_parts[-1]
-            cleaned = last_part.replace("-", " ").replace("_", " ")
-            return f"{domain} \u2014 {cleaned}"
-        return domain
 
     def get_groups_db() -> IndexedJsonDB[Group, uuid.UUID]:
         """Get a fresh groups database instance."""
