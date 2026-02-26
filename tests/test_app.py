@@ -479,6 +479,25 @@ def test_add_duplicate_url_same_group(client: FlaskClient) -> None:
     assert b"This URL already exists in the selected group!" in response.data
 
 
+def test_add_duplicate_url_with_trailing_slash(client: FlaskClient) -> None:
+    """Test that adding a URL with a trailing slash is detected as duplicate."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+
+    client.post(
+        "/url/add",
+        data={"url": "https://example.com/product", "group_id": str(group_id)},
+    )
+
+    response = client.post(
+        "/url/add",
+        data={"url": "https://example.com/product/", "group_id": str(group_id)},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"This URL already exists in the selected group!" in response.data
+
+
 def test_add_same_url_different_groups(client: FlaskClient) -> None:
     """Test that the same URL can be added to different groups."""
     client.post("/group/add", data={"group_name": "Work"})

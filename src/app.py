@@ -125,7 +125,8 @@ def create_app() -> Flask:
         """Check if a URL already exists in the given group."""
         urls_db = get_urls_db()
         existing = urls_db.find(group_id=group_id)
-        return any(u.url == url for u in existing)
+        normalized = url.rstrip("/")
+        return any(u.url.rstrip("/") == normalized for u in existing)
 
     def parse_uuid(uuid_str: str, field_name: str = "ID") -> Optional[uuid.UUID]:
         """Parse UUID from string. Flash error and return None if invalid."""
