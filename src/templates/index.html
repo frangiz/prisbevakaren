@@ -306,9 +306,11 @@
             transition: color 0.15s;
         }
         .url-link:hover { color: var(--accent); }
-        .url-subtitle {
+        .url-reveal {
+            display: none;
             margin-top: 2px;
         }
+        .url-reveal.visible { display: block; }
         .url-small-link {
             display: inline-flex;
             align-items: center;
@@ -321,6 +323,12 @@
         }
         .url-small-link:hover { color: var(--accent); }
         .url-small-link svg { flex-shrink: 0; }
+        .btn-xs {
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            font-size: 12px;
+        }
         .url-meta {
             display: flex;
             gap: 20px;
@@ -484,17 +492,13 @@
                             <div class="url-display">
                                 <div class="url-content">
                                     <div class="url-info">
-                                        {% if url.name %}
-                                        <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-link" title="{{ url.url }}">{{ url.name }}</a>
-                                        <div class="url-subtitle">
-                                            <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-small-link" title="{{ url.url }}">
+                                        <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-link" title="{{ url.url }}">{{ url.name or url.url|derive_name_from_url }}</a>
+                                        <div class="url-reveal" id="url-reveal-{{ url.id }}">
+                                            <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-small-link">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                                                {{ url.url|truncate(60, True) }}
+                                                {{ url.url }}
                                             </a>
                                         </div>
-                                        {% else %}
-                                        <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-link">{{ url.url }}</a>
-                                        {% endif %}
                                         {% if url.current_price is not none or url.last_price_change is not none %}
                                         <div class="url-meta">
                                             {% if url.current_price is not none %}
@@ -517,6 +521,7 @@
                                         {% endif %}
                                     </div>
                                     <div class="url-actions">
+                                        <button onclick="toggleUrlReveal('{{ url.id }}')" class="btn btn-outline btn-icon btn-xs" title="Show URL">&#128279;</button>
                                         <button onclick="toggleEdit('{{ url.id }}')" class="btn btn-outline btn-icon" title="Edit">&#9998;</button>
                                         <form method="POST" action="{{ url_for('delete_url', url_id=url.id) }}" style="display:inline">
                                             <button type="submit" class="btn btn-danger-ghost btn-icon" onclick="return confirm('Delete this URL?')" title="Delete">&times;</button>
@@ -568,6 +573,10 @@
         function toggleCollapse() {
             document.getElementById('group-form').classList.toggle('collapsed');
             document.getElementById('toggle-icon').classList.toggle('collapsed');
+        }
+        function toggleUrlReveal(id) {
+            var el = document.getElementById('url-reveal-' + id);
+            if (el) el.classList.toggle('visible');
         }
     </script>
 </body>

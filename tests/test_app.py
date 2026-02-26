@@ -631,8 +631,8 @@ def test_update_url_clear_name(client: FlaskClient) -> None:
     assert urls_data[0]["name"] is None
 
 
-def test_url_name_displayed_with_url_as_subtitle(client: FlaskClient) -> None:
-    """Test that when a name is set, URL appears as a subtitle link."""
+def test_url_name_displayed_with_url_reveal(client: FlaskClient) -> None:
+    """Test that when a name is set, URL is available via reveal toggle."""
     client.post("/group/add", data={"group_name": "Shopping"})
     group_id = get_group_id_by_name("Shopping")
     client.post(
@@ -647,5 +647,60 @@ def test_url_name_displayed_with_url_as_subtitle(client: FlaskClient) -> None:
 
     response = client.get("/")
     assert b"Cool Product" in response.data
-    assert b"url-subtitle" in response.data
+    assert b"url-reveal" in response.data
     assert b"url-small-link" in response.data
+
+
+def test_url_without_name_shows_derived_name(client: FlaskClient) -> None:
+    """Test that URLs without a manual name show an auto-derived name."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://www.jula.se/catalog/hammare-123",
+            "group_id": str(group_id),
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/")
+    # Should show auto-derived name instead of raw URL
+    assert "jula.se".encode() in response.data
+    assert "hammare 123".encode() in response.data
+
+
+def test_derive_name_filter_domain_only(app: Flask) -> None:
+    """Test derive_name_from_url filter with domain-only URL."""
+    with app.app_context():
+        env = app.jinja_env
+        derive = env.filters["derive_name_from_url"]
+        assert derive("https://www.example.com") == "example.com"
+        assert derive("https://www.example.com/") == "example.com"
+
+
+def test_derive_name_filter_with_path(app: Flask) -> None:
+    """Test derive_name_from_url filter with path segments."""
+    with app.app_context():
+        env = app.jinja_env
+        derive = env.filters["derive_name_from_url"]
+        result = derive("https://www.jula.se/catalog/snickarhammer-029205")
+        assert result == "jula.se \u2014 snickarhammer 029205"
+
+
+def test_url_reveal_toggle_present(client: FlaskClient) -> None:
+    """Test that the URL reveal toggle button is present for tracked URLs."""
+    client.post("/group/add", data={"group_name": "Shopping"})
+    group_id = get_group_id_by_name("Shopping")
+    client.post(
+        "/url/add",
+        data={
+            "url": "https://example.com/product",
+            "group_id": str(group_id),
+            "name": "My Product",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/")
+    assert b"toggleUrlReveal" in response.data
