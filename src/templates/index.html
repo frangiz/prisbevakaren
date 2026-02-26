@@ -3,282 +3,388 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>URL Manager with Groups</title>
+    <title>Prisbevakaren</title>
     <style>
-        * {
+        *, *::before, *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+        :root {
+            --bg: #fafafa;
+            --surface: #ffffff;
+            --text: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --border: #e5e7eb;
+            --border-light: #f3f4f6;
+            --accent: #6366f1;
+            --accent-light: #eef2ff;
+            --accent-hover: #4f46e5;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
+            line-height: 1.5;
         }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            padding: 30px;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-            text-align: center;
-            font-size: 2em;
-        }
-        h2 {
-            color: #555;
-            margin-bottom: 15px;
-            font-size: 1.3em;
-        }
-        .flash-messages {
-            margin-bottom: 20px;
-        }
-        .flash {
-            padding: 12px 20px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-        .flash.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .flash.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .add-form {
+        /* Navbar */
+        .navbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            height: 64px;
             display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
+            align-items: center;
+            padding: 0 40px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
         }
-        .add-form input[type="text"], .add-form select {
-            padding: 12px 15px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
-            transition: border-color 0.3s;
+        .navbar-inner {
+            max-width: 1000px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        .add-form input[type="text"] {
-            flex: 2;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .add-form select {
-            flex: 1;
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), #a78bfa);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .add-form input[type="text"]:focus, .add-form select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 600;
-        }
-        .btn-primary {
-            background-color: #5568d3;
+        .brand-mark svg {
+            width: 20px;
+            height: 20px;
             color: white;
         }
-        .btn-primary:hover {
-            background-color: #4451b8;
-            transform: translateY(-2px);
+        .brand-text {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-        .btn-danger {
-            background-color: #c82333;
-            color: white;
+        .nav-pill {
+            font-size: 13px;
+            color: var(--text-secondary);
+            background: var(--accent-light);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 500;
         }
-        .btn-danger:hover {
-            background-color: #a71d2a;
+        /* Main layout */
+        .page {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 32px 40px;
         }
-        .btn-success {
-            background-color: #218838;
-            color: white;
-        }
-        .btn-success:hover {
-            background-color: #1e7e34;
-        }
-        .btn-info {
-            background-color: #138496;
-            color: white;
-        }
-        .btn-info:hover {
-            background-color: #0f6674;
-        }
-        .btn-secondary {
-            background-color: #5a6268;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background-color: #4e555b;
-        }
-        .small-btn {
-            padding: 6px 12px;
-            font-size: 16px;
-        }
-        .section {
-            margin-bottom: 30px;
-        }
-        .group-card {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-left: 5px solid #667eea;
-        }
-        .group-header {
+        .page-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 28px;
         }
-        .group-header.editing .group-display {
-            display: none;
-        }
-        .group-header .group-edit {
-            display: none;
-        }
-        .group-header.editing .group-edit {
-            display: flex;
-            gap: 10px;
-            width: 100%;
-        }
-        .group-edit input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-        }
-        .group-name {
-            font-size: 1.3em;
-            font-weight: 600;
-            color: #333;
-        }
-        .group-actions {
-            display: flex;
-            gap: 5px;
-        }
-        .url-list {
-            list-style: none;
-        }
-        .url-item {
-            background: white;
-            padding: 12px 15px;
+        .page-title { font-size: 26px; font-weight: 700; }
+        /* Flash */
+        .flash-messages { margin-bottom: 20px; }
+        .flash {
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
             margin-bottom: 8px;
-            border-radius: 5px;
-            border-left: 3px solid #28a745;
-            transition: transform 0.2s;
-        }
-        .url-item:hover {
-            transform: translateX(5px);
-        }
-        .url-content {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
-        .url-text {
-            flex: 1;
-            word-break: break-all;
-            color: #333;
+        .flash.success { background: #ecfdf5; color: #065f46; border-left: 4px solid var(--success); }
+        .flash.error { background: #fef2f2; color: #991b1b; border-left: 4px solid var(--danger); }
+        /* Action bar */
+        .action-bar {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .action-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 22px;
+        }
+        .action-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .action-label {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--accent);
+        }
+        .inline-form {
+            display: flex;
+            gap: 8px;
+        }
+        input[type="text"], select {
+            padding: 10px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            color: var(--text);
+            background: var(--bg);
+            outline: none;
+            transition: all 0.15s;
+        }
+        input[type="text"]:focus, select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+        input[type="text"]::placeholder { color: var(--text-muted); }
+        .inline-form input[type="text"] { flex: 2; }
+        .inline-form select { flex: 1; }
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1.5px solid var(--border);
+        }
+        .btn-outline:hover {
+            background: var(--bg);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1.5px solid var(--border);
+        }
+        .btn-danger-ghost:hover {
+            color: var(--danger);
+            border-color: var(--danger);
+            background: #fef2f2;
+        }
+        .btn-icon {
+            width: 34px;
+            height: 34px;
+            padding: 0;
             font-size: 15px;
         }
-        .url-link {
-            color: #667eea;
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-        .url-link:hover {
-            color: #5568d3;
-            text-decoration: underline;
-        }
-        .url-actions {
-            display: flex;
-            gap: 5px;
-        }
-        .url-item.editing .url-display {
-            display: none;
-        }
-        .url-item .url-edit {
-            display: none;
-        }
-        .url-item.editing .url-edit {
-            display: flex;
-            gap: 10px;
-        }
-        .url-edit input[type="text"] {
-            flex: 1;
-            padding: 8px 12px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        .empty-state svg {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-        .empty-group {
-            text-align: center;
-            padding: 20px;
-            color: #999;
-            font-style: italic;
-        }
-        .collapsible-header {
+        /* Collapsible */
+        .collapse-trigger {
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 8px;
             user-select: none;
+            padding: 12px 22px;
         }
-        .collapsible-header:hover {
-            opacity: 0.8;
+        .collapse-trigger:hover { background: var(--bg); }
+        .collapse-trigger .action-label { margin-bottom: 0; }
+        .chevron {
+            transition: transform 0.2s;
+            font-size: 11px;
+            color: var(--text-muted);
         }
-        .toggle-icon {
-            font-size: 0.8em;
-            transition: transform 0.3s;
-        }
-        .toggle-icon.collapsed {
-            transform: rotate(-90deg);
-        }
-        .collapsible-content {
-            max-height: 500px;
+        .chevron.collapsed { transform: rotate(-90deg); }
+        .collapse-body {
+            max-height: 200px;
             overflow: hidden;
-            transition: max-height 0.3s ease-out;
+            transition: max-height 0.25s ease;
         }
-        .collapsible-content.collapsed {
-            max-height: 0;
+        .collapse-body.collapsed { max-height: 0; }
+        .collapse-body-inner { padding: 0 22px 18px; }
+        /* Group cards */
+        .groups-grid { display: flex; flex-direction: column; gap: 16px; }
+        .group-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: box-shadow 0.2s;
         }
-        .primary-section {
-            background: #f0f4ff;
-            border: 2px solid #5568d3;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 25px;
+        .group-card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
         }
-        .primary-section h2 {
-            color: #5568d3;
+        .group-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 22px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .group-name-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .group-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+        .group-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .group-count {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: var(--bg);
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .group-actions { display: flex; gap: 4px; }
+        .group-top.editing .group-display { display: none; }
+        .group-top .group-edit { display: none; }
+        .group-top.editing .group-edit { display: flex; gap: 8px; width: 100%; }
+        .group-edit input { flex: 1; }
+        /* URL list */
+        .url-list { list-style: none; }
+        .url-item {
+            padding: 14px 22px;
+            border-bottom: 1px solid var(--border-light);
+            transition: background 0.1s;
+        }
+        .url-item:last-child { border-bottom: none; }
+        .url-item:hover { background: #fafbff; }
+        .url-content { display: flex; align-items: center; gap: 14px; }
+        .url-info { flex: 1; min-width: 0; }
+        .url-link {
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            word-break: break-all;
+            transition: color 0.15s;
+        }
+        .url-link:hover { color: var(--accent); }
+        .url-meta {
+            display: flex;
+            gap: 20px;
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .price-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--bg);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .price-up { color: var(--danger) !important; font-weight: 600; }
+        .price-down { color: var(--success) !important; font-weight: 600; }
+        .url-actions { display: flex; gap: 4px; }
+        .url-item.editing .url-display { display: none; }
+        .url-item .url-edit { display: none; }
+        .url-item.editing .url-edit { display: flex; gap: 8px; width: 100%; }
+        .url-edit input[type="text"] { flex: 1; }
+        /* Empty */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-muted);
+        }
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--accent-light);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+        .empty-icon svg { width: 28px; height: 28px; color: var(--accent); }
+        .empty-state h3 { font-size: 18px; color: var(--text); margin-bottom: 4px; }
+        .empty-state p { font-size: 14px; }
+        .empty-group {
+            padding: 28px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        /* Footer */
+        .footer {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px 40px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Prisbevakaren</h1>
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <div class="brand">
+                <div class="brand-mark">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                </div>
+                <span class="brand-text">Prisbevakaren</span>
+            </div>
+            {% if groups %}
+            <span class="nav-pill">{{ urls_by_group.values()|map('length')|sum }} products tracked</span>
+            {% endif %}
+        </div>
+    </nav>
 
+    <div class="page">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="flash-messages">
@@ -289,142 +395,152 @@
             {% endif %}
         {% endwith %}
 
-        <!-- Add URL Form -->
+        <div class="page-header">
+            <h1 class="page-title">Price Tracker</h1>
+        </div>
+
         {% if groups %}
-        <div class="section primary-section">
-            <h2>Add URL</h2>
-            <form method="POST" action="{{ url_for('add_url') }}" class="add-form">
-                <input type="text" name="url" placeholder="Enter a URL (e.g., https://example.com)" required autofocus>
+        <div class="action-card" style="margin-bottom: 12px;">
+            <div class="action-card-header">
+                <span class="action-label">Add URL to Track</span>
+            </div>
+            <form method="POST" action="{{ url_for('add_url') }}" class="inline-form">
+                <input type="text" name="url" placeholder="Paste a product URL..." required autofocus>
                 <select name="group_id" required>
-                    <option value="">Select Group</option>
+                    <option value="">Select group</option>
                     {% for group in groups %}
                         <option value="{{ group.id }}">{{ group.name }}</option>
                     {% endfor %}
                 </select>
-                <button type="submit" class="btn btn-info">Add URL</button>
+                <button type="submit" class="btn btn-primary">Track</button>
             </form>
         </div>
         {% endif %}
 
-        <!-- Add Group Form -->
-        <div class="section">
-            <h2 class="collapsible-header" onclick="toggleCollapse()">
-                <span class="toggle-icon" id="toggle-icon">▼</span>
-                <span>Add Group</span>
-            </h2>
-            <div class="collapsible-content collapsed" id="group-form">
-                <form method="POST" action="{{ url_for('add_group') }}" class="add-form" style="margin-top: 15px;">
-                    <input type="text" name="group_name" placeholder="Enter group name (e.g., Work, Personal)" required>
-                    <button type="submit" class="btn btn-primary">Add Group</button>
-                </form>
+        <div class="action-card" style="margin-bottom: 28px; padding: 0;">
+            <div class="collapse-trigger" onclick="toggleCollapse()">
+                <span class="chevron collapsed" id="toggle-icon">▼</span>
+                <span class="action-label">New Group</span>
+            </div>
+            <div class="collapse-body collapsed" id="group-form">
+                <div class="collapse-body-inner">
+                    <form method="POST" action="{{ url_for('add_group') }}" class="inline-form">
+                        <input type="text" name="group_name" placeholder="Enter group name..." required>
+                        <button type="submit" class="btn btn-primary">Create Group</button>
+                    </form>
+                </div>
             </div>
         </div>
 
-        <!-- Groups and URLs Display -->
         {% if groups %}
-            <div class="section">
-                <h2>Tracked Products</h2>
-                {% for group in groups %}
-                    <div class="group-card">
-                        <div class="group-header" id="group-header-{{ group.id }}">
-                            <div class="group-display" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                <span class="group-name">{{ group.name }}</span>
-                                <div class="group-actions">
-                                    <button onclick="toggleGroupEdit('{{ group.id }}')" class="btn btn-info small-btn" title="Rename">&#9998;</button>
-                                    <form method="POST" action="{{ url_for('delete_group', group_id=group.id) }}" style="display: inline;">
-                                        <button type="submit" class="btn btn-danger small-btn" onclick="return confirm('Are you sure you want to delete this group?')" title="Delete">&times;</button>
-                                    </form>
+        <div class="groups-grid">
+            {% for group in groups %}
+            <div class="group-card">
+                <div class="group-top" id="group-header-{{ group.id }}">
+                    <div class="group-display" style="display:flex;justify-content:space-between;align-items:center;width:100%">
+                        <div class="group-name-wrap">
+                            <span class="group-dot"></span>
+                            <span class="group-name">{{ group.name }}</span>
+                            {% if urls_by_group.get(group.id) %}
+                            <span class="group-count">{{ urls_by_group[group.id]|length }} items</span>
+                            {% endif %}
+                        </div>
+                        <div class="group-actions">
+                            <button onclick="toggleGroupEdit('{{ group.id }}')" class="btn btn-outline btn-icon" title="Rename">&#9998;</button>
+                            <form method="POST" action="{{ url_for('delete_group', group_id=group.id) }}" style="display:inline">
+                                <button type="submit" class="btn btn-danger-ghost btn-icon" onclick="return confirm('Delete this group?')" title="Delete">&times;</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="group-edit">
+                        <form method="POST" action="{{ url_for('update_group', group_id=group.id) }}" style="display:flex;gap:8px;width:100%">
+                            <input type="text" name="group_name" value="{{ group.name }}" required>
+                            <button type="submit" class="btn btn-success btn-icon" title="Save">✓</button>
+                            <button type="button" onclick="toggleGroupEdit('{{ group.id }}')" class="btn btn-outline btn-icon" title="Cancel">✕</button>
+                        </form>
+                    </div>
+                </div>
+
+                {% if urls_by_group.get(group.id) %}
+                    <ul class="url-list">
+                        {% for url in urls_by_group[group.id] %}
+                        <li class="url-item" id="url-{{ url.id }}">
+                            <div class="url-display">
+                                <div class="url-content">
+                                    <div class="url-info">
+                                        <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-link">{{ url.url }}</a>
+                                        {% if url.current_price is not none or url.last_price_change is not none %}
+                                        <div class="url-meta">
+                                            {% if url.current_price is not none %}
+                                            <span class="price-tag">
+                                                {{ "%.2f"|format(url.current_price) }} kr
+                                                {% if url.previous_price is not none and url.previous_price != url.current_price %}
+                                                    {% set diff = url.current_price - url.previous_price %}
+                                                    {% if diff > 0 %}
+                                                        <span class="price-up">(+{{ "%.2f"|format(diff) }} kr)</span>
+                                                    {% else %}
+                                                        <span class="price-down">({{ "%.2f"|format(diff) }} kr)</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </span>
+                                            {% endif %}
+                                            {% if url.last_price_change is not none %}
+                                            <span title="{{ url.last_price_change|format_timestamp_absolute }}">Updated {{ url.last_price_change|format_timestamp }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="url-actions">
+                                        <button onclick="toggleEdit('{{ url.id }}')" class="btn btn-outline btn-icon" title="Edit">&#9998;</button>
+                                        <form method="POST" action="{{ url_for('delete_url', url_id=url.id) }}" style="display:inline">
+                                            <button type="submit" class="btn btn-danger-ghost btn-icon" onclick="return confirm('Delete this URL?')" title="Delete">&times;</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="group-edit">
-                                <form method="POST" action="{{ url_for('update_group', group_id=group.id) }}" style="display: flex; gap: 10px; width: 100%;">
-                                    <input type="text" name="group_name" value="{{ group.name }}" required>
-                                    <button type="submit" class="btn btn-success small-btn" title="Save">✓</button>
-                                    <button type="button" onclick="toggleGroupEdit('{{ group.id }}')" class="btn btn-secondary small-btn" title="Cancel">✕</button>
+                            <div class="url-edit">
+                                <form method="POST" action="{{ url_for('update_url', url_id=url.id) }}" style="display:flex;gap:8px;width:100%">
+                                    <input type="text" name="url" value="{{ url.url }}" required>
+                                    <button type="submit" class="btn btn-success btn-icon" title="Save">✓</button>
+                                    <button type="button" onclick="toggleEdit('{{ url.id }}')" class="btn btn-outline btn-icon" title="Cancel">✕</button>
                                 </form>
                             </div>
-                        </div>
-
-                        {% if urls_by_group.get(group.id) %}
-                            <ul class="url-list">
-                                {% for url in urls_by_group[group.id] %}
-                                    <li class="url-item" id="url-{{ url.id }}">
-                                        <div class="url-display">
-                                            <div class="url-content">
-                                                <div style="flex: 1;">
-                                                    <a href="{{ url.url }}" target="_blank" rel="noopener noreferrer" class="url-text url-link">{{ url.url }}</a>
-                                                    {% if url.current_price is not none or url.last_price_change is not none %}
-                                                    <div style="margin-top: 8px; font-size: 13px; color: #666;">
-                                                        {% if url.current_price is not none %}
-                                                        <span style="margin-right: 15px;">
-                                                            Current Price: <strong>{{ "%.2f"|format(url.current_price) }} kr</strong>
-                                                            {% if url.previous_price is not none and url.previous_price != url.current_price %}
-                                                                {% set diff = url.current_price - url.previous_price %}
-                                                                {% if diff > 0 %}
-                                                                    <span style="color: #c82333; font-size: 12px;"> (+{{ "%.2f"|format(diff) }} kr)</span>
-                                                                {% else %}
-                                                                    <span style="color: #218838; font-size: 12px;"> ({{ "%.2f"|format(diff) }} kr)</span>
-                                                                {% endif %}
-                                                            {% endif %}
-                                                        </span>
-                                                        {% endif %}
-                                                        {% if url.last_price_change is not none %}
-                                                        <span title="{{ url.last_price_change|format_timestamp_absolute }}">Last Change: {{ url.last_price_change|format_timestamp }}</span>
-                                                        {% endif %}
-                                                    </div>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="url-actions">
-                                                    <button onclick="toggleEdit('{{ url.id }}')" class="btn btn-info small-btn" title="Edit">&#9998;</button>
-                                                    <form method="POST" action="{{ url_for('delete_url', url_id=url.id) }}" style="display: inline;">
-                                                        <button type="submit" class="btn btn-danger small-btn" onclick="return confirm('Are you sure you want to delete this URL?')" title="Delete">&times;</button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="url-edit">
-                                            <form method="POST" action="{{ url_for('update_url', url_id=url.id) }}" style="display: flex; gap: 10px; width: 100%;">
-                                                <input type="text" name="url" value="{{ url.url }}" required>
-                                                <button type="submit" class="btn btn-success small-btn" title="Save">✓</button>
-                                                <button type="button" onclick="toggleEdit('{{ url.id }}')" class="btn btn-secondary small-btn" title="Cancel">✕</button>
-                                            </form>
-                                        </div>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <div class="empty-group">No URLs in this group yet</div>
-                        {% endif %}
-                    </div>
-                {% endfor %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="empty-group">No products tracked in this group yet</div>
+                {% endif %}
             </div>
+            {% endfor %}
+        </div>
         {% else %}
             <div class="empty-state">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                <h2>No Groups yet</h2>
-                <p>Create your first group to start organizing URLs!</p>
+                <div class="empty-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                </div>
+                <h3>No groups yet</h3>
+                <p>Create your first group above to begin tracking product prices.</p>
             </div>
         {% endif %}
     </div>
 
+    <div class="footer">
+        Prisbevakaren &mdash; Price tracking made simple
+    </div>
+
     <script>
         function toggleEdit(id) {
-            const item = document.getElementById('url-' + id);
-            item.classList.toggle('editing');
+            document.getElementById('url-' + id).classList.toggle('editing');
         }
-
         function toggleGroupEdit(id) {
-            const header = document.getElementById('group-header-' + id);
-            header.classList.toggle('editing');
+            document.getElementById('group-header-' + id).classList.toggle('editing');
         }
-
         function toggleCollapse() {
-            const content = document.getElementById('group-form');
-            const icon = document.getElementById('toggle-icon');
-            content.classList.toggle('collapsed');
-            icon.classList.toggle('collapsed');
+            document.getElementById('group-form').classList.toggle('collapsed');
+            document.getElementById('toggle-icon').classList.toggle('collapsed');
         }
     </script>
 </body>
