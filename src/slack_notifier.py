@@ -28,10 +28,10 @@ class Slack:
             message: Warning message to post
         """
         try:
+            self.logger.info(f"Posting warning message to Slack: {message[:200]}")
             _ = self.client.chat_postMessage(
                 channel=self.channel_id, text=f":warning: {message}"
             )
-            self.logger.info(f"Posting warning message to Slack: {message[:200]}")
         except SlackApiError as e:
             self.logger.error(f"Error posting warning to Slack: {e}")
 
@@ -42,8 +42,8 @@ class Slack:
             message: Message to post
         """
         try:
-            _ = self.client.chat_postMessage(channel=self.channel_id, text=message)
             self.logger.info(f"Posting message to Slack: {message[:200]}")
+            _ = self.client.chat_postMessage(channel=self.channel_id, text=message)
         except SlackApiError as e:
             self.logger.error(f"Error posting message to Slack: {e}")
 
@@ -55,9 +55,10 @@ class Slack:
             message: Log message to post
         """
         prefix = {"WARNING": ":warning:", "ERROR": ":x:", "CRITICAL": ":exclamation:"}
+        emoji = prefix.get(level_name, ":information_source:")
         try:
             _ = self.client.chat_postMessage(
-                channel=self.channel_id, text=f"{prefix[level_name]} {message}"
+                channel=self.channel_id, text=f"{emoji} {message}"
             )
         except SlackApiError as e:
             self.logger.error(f"Error posting log message to Slack: {e}")
