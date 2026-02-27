@@ -1,5 +1,6 @@
 """Cron job script to update prices for all URLs in the database."""
 
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
@@ -9,14 +10,43 @@ from typed_json_db import IndexedJsonDB
 from src.app import URL, URLS_DB_PATH
 from src.config import SlackConfig
 from src.price_scraper import PriceScraper
-from src.slack_notifier import Slack
+from src.slack_notifier import Slack, SlackHandler
 
 
 def update_all_prices() -> None:
     """Fetch and update prices for all URLs in the database."""
-    print(f"[{datetime.now(timezone.utc).isoformat()}] Starting price update job...")
+    # Set up logging
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    log_file = os.path.join(script_dir, "update_prices.log")
 
-    # Set up Slack client if configured
+    # Configure logging to write to file
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    # Remove any existing handlers
+    logger.handlers.clear()
+
+    # File handler
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.INFO)
+    file_formatter = logging.Formatter(
+        "%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s - %(message)s"
+    )
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+
+    # Console handler (for print-like output)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter("%(message)s")
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+
+    logger.info(
+        f"[{datetime.now(timezone.utc).isoformat()}] Starting price update job..."
+    )
+
+    # Set up Slack handler if configured
     slack_client = None
     bot_token = os.environ.get("SLACK_BOT_TOKEN")
     channel_id = os.environ.get("SLACK_CHANNEL_ID")
@@ -24,9 +54,15 @@ def update_all_prices() -> None:
     if bot_token and channel_id:
         slack_config = SlackConfig(bot_token=bot_token, channel_id=channel_id)
         slack_client = Slack(slack_config)
-        print("Slack notifications enabled")
+
+        # Add Slack handler for WARNING and ERROR levels
+        slack_handler = SlackHandler(slack_config)
+        slack_handler.setLevel(logging.WARNING)
+        logger.addHandler(slack_handler)
+
+        logger.info("Slack notifications enabled")
     else:
-        print("Slack notifications not configured")
+        logger.info("Slack notifications not configured")
 
     try:
         # Initialize database and scraper (using context manager for cleanup)
@@ -41,28 +77,28 @@ def update_all_prices() -> None:
             failed = 0
             failed_urls = []
 
-            print(f"Found {total} URLs to process")
+            logger.info(f"Found {total} URLs to process")
 
             for url_obj in urls:
-                print(f"\nProcessing: {url_obj.url}")
+                logger.info(f"\nProcessing: {url_obj.url}")
 
                 try:
                     # Fetch the current price
                     new_price = scraper.fetch_price(url_obj.url)
 
                     if new_price is None:
-                        print("  ❌ Failed to fetch price")
+                        logger.warning(f"Failed to fetch price for {url_obj.url}")
                         failed += 1
                         failed_urls.append(url_obj.url)
                         continue
 
-                    print(f"  💰 Found price: {new_price} kr")
+                    logger.info(f"  💰 Found price: {new_price} kr")
 
                     # Check if price has changed
                     price_changed = url_obj.current_price != new_price
 
                     if price_changed:
-                        print(
+                        logger.info(
                             f"  📈 Price changed: {url_obj.current_price} → {new_price}"
                         )
                         url_obj.previous_price = url_obj.current_price
@@ -72,26 +108,21 @@ def update_all_prices() -> None:
                         ).isoformat()
                         urls_db.update(url_obj)
                         updated += 1
-                        print("  ✅ Updated in database")
+                        logger.info("  ✅ Updated in database")
                     else:
-                        print(f"  ℹ️  Price unchanged: {new_price} kr")
+                        logger.info(f"  ℹ️  Price unchanged: {new_price} kr")
 
                 except Exception as e:
-                    print(f"  ❌ Error processing URL: {e}")
+                    logger.error(f"Error processing URL {url_obj.url}: {e}")
                     failed += 1
                     failed_urls.append(url_obj.url)
-                    if slack_client:
-                        error_msg = (
-                            f"Failed to process URL: {url_obj.url}\nError: {str(e)}"
-                        )
-                        slack_client.post_warn_to_slack(error_msg)
 
-        print(f"\n{'=' * 60}")
-        print("Price update job completed!")
-        print(f"  Total URLs: {total}")
-        print(f"  Successfully updated: {updated}")
-        print(f"  Failed: {failed}")
-        print(f"{'=' * 60}\n")
+        logger.info(f"\n{'=' * 60}")
+        logger.info("Price update job completed!")
+        logger.info(f"  Total URLs: {total}")
+        logger.info(f"  Successfully updated: {updated}")
+        logger.info(f"  Failed: {failed}")
+        logger.info(f"{'=' * 60}\n")
 
         # Send summary notification if there were any failures
         if failed > 0 and slack_client:
@@ -112,10 +143,7 @@ def update_all_prices() -> None:
             slack_client.post_message_to_slack(summary)
 
     except Exception as e:
-        error_msg = f"Critical error in price update job: {e}"
-        print(f"\n❌ {error_msg}\n")
-        if slack_client:
-            slack_client.post_message_to_slack(f":x: {error_msg}")
+        logger.error(f"Critical error in price update job: {e}", exc_info=True)
         raise
 
 
