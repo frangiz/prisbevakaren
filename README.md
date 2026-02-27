@@ -34,6 +34,24 @@ The application will be available at `http://localhost:5001`.
 
 ## Price Tracking
 
+### Slack Notifications (Optional)
+
+To receive Slack notifications when errors occur during price updates, set up a Slack webhook:
+
+1. Create a Slack Incoming Webhook:
+   - Go to https://api.slack.com/messaging/webhooks
+   - Create a new webhook for your workspace
+   - Copy the webhook URL
+
+2. Set the environment variable:
+   ```bash
+   export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+   ```
+
+3. Run the price update script — errors will now be reported to Slack automatically.
+
+**Note:** If the `SLACK_WEBHOOK_URL` is not set, the script will run normally without sending notifications.
+
 ### Manual Price Update
 
 Update prices for all URLs in the database:
@@ -50,11 +68,11 @@ Set up a cron job to automatically update prices. Edit your crontab:
 crontab -e
 ```
 
-Add one of the following lines:
+Add one of the following lines (including the SLACK_WEBHOOK_URL if you want notifications):
 
 ```bash
-# Update prices every hour
-0 * * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
+# Update prices every hour (with Slack notifications)
+0 * * * * cd /path/to/prisbevakaren && SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL" /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
 
 # Update prices every 6 hours
 0 */6 * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
