@@ -34,6 +34,28 @@ The application will be available at `http://localhost:5001`.
 
 ## Price Tracking
 
+### Slack Notifications (Optional)
+
+To receive Slack notifications when errors occur during price updates, set up a Slack bot:
+
+1. Create a Slack App and Bot:
+   - Go to https://api.slack.com/apps
+   - Create a new app for your workspace
+   - Add a bot user to your app
+   - Install the app to your workspace
+   - Copy the Bot User OAuth Token (starts with `xoxb-`)
+   - Note the channel ID where you want notifications (e.g., `C123456`)
+
+2. Set the environment variables:
+   ```bash
+   export SLACK_BOT_TOKEN="xoxb-your-bot-token-here"
+   export SLACK_CHANNEL_ID="C123456"
+   ```
+
+3. Run the price update script — errors will now be reported to Slack automatically.
+
+**Note:** If the Slack environment variables are not set, the script will run normally without sending notifications.
+
 ### Manual Price Update
 
 Update prices for all URLs in the database:
@@ -54,13 +76,29 @@ Add one of the following lines:
 
 ```bash
 # Update prices every hour
-0 * * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
+# Note: Source Slack config from .env file in project root to avoid exposing it in crontab
+0 * * * * cd /path/to/prisbevakaren && . .env && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
 
 # Update prices every 6 hours
 0 */6 * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
 
 # Update prices once daily at 8 AM
 0 8 * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
+```
+
+**Secure configuration for Slack notifications:**
+
+Instead of exposing the bot token directly in crontab, create a `.env` file in the project root directory:
+
+```bash
+# .env (in the root directory of the project)
+export SLACK_BOT_TOKEN="xoxb-your-bot-token-here"
+export SLACK_CHANNEL_ID="C123456"
+```
+
+The `.env` file is already ignored by git, so your bot token will not be committed. Make sure to restrict permissions on the `.env` file:
+```bash
+chmod 600 .env
 ```
 
 ### Supported Websites
