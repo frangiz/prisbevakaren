@@ -1,91 +1,95 @@
 """Slack notification module for sending error alerts."""
 
-import os
-from typing import Optional
+import logging
 
-import requests
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 
-
-def send_error_notification(message: str, details: Optional[str] = None) -> bool:
-    """Send an error notification to Slack.
-
-    Args:
-        message: The main error message
-        details: Optional additional details about the error
-
-    Returns:
-        True if notification was sent successfully, False otherwise
-    """
-    webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
-
-    if not webhook_url:
-        # Silently skip if webhook is not configured
-        return False
-
-    try:
-        # Format the message
-        text = f"🚨 *Error in Prisbevakaren*\n\n{message}"
-        if details:
-            text += f"\n\n*Details:*\n```{details}```"
-
-        payload = {
-            "text": text,
-            "username": "Prisbevakaren Bot",
-            "icon_emoji": ":warning:",
-        }
-
-        response = requests.post(webhook_url, json=payload, timeout=10)
-        response.raise_for_status()
-        return True
-
-    except Exception as e:
-        # Don't let notification failures break the main application
-        print(f"Failed to send Slack notification: {e}")
-        return False
+from src.config import SlackConfig
 
 
-def send_summary_notification(
-    title: str, total: int, succeeded: int, failed: int, details: Optional[str] = None
-) -> bool:
-    """Send a summary notification to Slack.
+class Slack:
+    """Slack client for sending notifications."""
 
-    Args:
-        title: The title of the summary
-        total: Total items processed
-        succeeded: Number of successful operations
-        failed: Number of failed operations
-        details: Optional additional details
+    def __init__(self, config: SlackConfig):
+        """Initialize Slack client.
 
-    Returns:
-        True if notification was sent successfully, False otherwise
-    """
-    webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
+        Args:
+            config: SlackConfig with bot_token and channel_id
+        """
+        self.logger = logging.getLogger(__name__)
+        self.client = WebClient(token=config.bot_token)
+        self.channel_id = config.channel_id
 
-    if not webhook_url:
-        return False
+    def post_warn_to_slack(self, message: str) -> None:
+        """Post a warning message to Slack.
 
-    try:
-        # Choose emoji based on results
-        emoji = "✅" if failed == 0 else "⚠️" if failed < total else "❌"
+        Args:
+            message: Warning message to post
+        """
+        try:
+            _ = self.client.chat_postMessage(
+                channel=self.channel_id, text=f":warning: {message}"
+            )
+            self.logger.info(f"Posting warning message to Slack: {message[:200]}")
+        except SlackApiError as e:
+            self.logger.error(f"Error posting warning to Slack: {e}")
 
-        text = f"{emoji} *{title}*\n\n"
-        text += f"Total: {total}\n"
-        text += f"Succeeded: {succeeded}\n"
-        text += f"Failed: {failed}"
+    def post_message_to_slack(self, message: str) -> None:
+        """Post a message to Slack.
 
-        if details:
-            text += f"\n\n*Details:*\n{details}"
+        Args:
+            message: Message to post
+        """
+        try:
+            _ = self.client.chat_postMessage(channel=self.channel_id, text=message)
+            self.logger.info(f"Posting message to Slack: {message[:200]}")
+        except SlackApiError as e:
+            self.logger.error(f"Error posting message to Slack: {e}")
 
-        payload = {
-            "text": text,
-            "username": "Prisbevakaren Bot",
-            "icon_emoji": ":bar_chart:",
-        }
+    def log_message(self, level_name: str, message: str) -> None:
+        """Post a log message to Slack with appropriate emoji.
 
-        response = requests.post(webhook_url, json=payload, timeout=10)
-        response.raise_for_status()
-        return True
+        Args:
+            level_name: Log level (WARNING, ERROR, CRITICAL)
+            message: Log message to post
+        """
+        prefix = {"WARNING": ":warning:", "ERROR": ":x:", "CRITICAL": ":exclamation:"}
+        try:
+            _ = self.client.chat_postMessage(
+                channel=self.channel_id, text=f"{prefix[level_name]} {message}"
+            )
+        except SlackApiError as e:
+            self.logger.error(f"Error posting log message to Slack: {e}")
 
-    except Exception as e:
-        print(f"Failed to send Slack notification: {e}")
-        return False
+
+class SlackHandler(logging.Handler):
+    """Custom Slack logging handler."""
+
+    def __init__(self, config: SlackConfig):
+        """Initialize Slack logging handler.
+
+        Args:
+            config: SlackConfig with bot_token and channel_id
+        """
+        super().__init__()
+        self.slack = Slack(config)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """Emit a log record to Slack.
+
+        Args:
+            record: Log record to emit
+        """
+        # Prevent recursion: don't handle logs from slack_sdk or our own slack module
+        if record.name.startswith("slack_sdk") or record.name == __name__:
+            return
+
+        log_entry = self.format(record)
+
+        try:
+            self.slack.log_message(record.levelname, log_entry)
+        except Exception:
+            # Catch any exceptions here to prevent infinite recursion
+            # We can't log this failure since that would trigger another emit call
+            pass

@@ -36,21 +36,25 @@ The application will be available at `http://localhost:5001`.
 
 ### Slack Notifications (Optional)
 
-To receive Slack notifications when errors occur during price updates, set up a Slack webhook:
+To receive Slack notifications when errors occur during price updates, set up a Slack bot:
 
-1. Create a Slack Incoming Webhook:
-   - Go to https://api.slack.com/messaging/webhooks
-   - Create a new webhook for your workspace
-   - Copy the webhook URL
+1. Create a Slack App and Bot:
+   - Go to https://api.slack.com/apps
+   - Create a new app for your workspace
+   - Add a bot user to your app
+   - Install the app to your workspace
+   - Copy the Bot User OAuth Token (starts with `xoxb-`)
+   - Note the channel ID where you want notifications (e.g., `C123456`)
 
-2. Set the environment variable:
+2. Set the environment variables:
    ```bash
-   export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+   export SLACK_BOT_TOKEN="xoxb-your-bot-token-here"
+   export SLACK_CHANNEL_ID="C123456"
    ```
 
 3. Run the price update script — errors will now be reported to Slack automatically.
 
-**Note:** If the `SLACK_WEBHOOK_URL` is not set, the script will run normally without sending notifications.
+**Note:** If the Slack environment variables are not set, the script will run normally without sending notifications.
 
 ### Manual Price Update
 
@@ -72,7 +76,7 @@ Add one of the following lines:
 
 ```bash
 # Update prices every hour
-# Note: Source webhook URL from .env file in project root to avoid exposing it in crontab
+# Note: Source Slack config from .env file in project root to avoid exposing it in crontab
 0 * * * * cd /path/to/prisbevakaren && . .env && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
 
 # Update prices every 6 hours
@@ -84,14 +88,15 @@ Add one of the following lines:
 
 **Secure configuration for Slack notifications:**
 
-Instead of exposing the webhook URL directly in crontab, create a `.env` file in the project root directory:
+Instead of exposing the bot token directly in crontab, create a `.env` file in the project root directory:
 
 ```bash
 # .env (in the root directory of the project)
-export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+export SLACK_BOT_TOKEN="xoxb-your-bot-token-here"
+export SLACK_CHANNEL_ID="C123456"
 ```
 
-The `.env` file is already ignored by git, so your webhook URL will not be committed. Make sure to restrict permissions on the `.env` file:
+The `.env` file is already ignored by git, so your bot token will not be committed. Make sure to restrict permissions on the `.env` file:
 ```bash
 chmod 600 .env
 ```

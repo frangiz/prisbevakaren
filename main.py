@@ -1,5 +1,6 @@
 """Main entry point for the Flask Prisbevakaren application."""
 
+import logging
 import os
 
 from src.app import create_app
@@ -7,6 +8,15 @@ from src.app import create_app
 
 def main() -> None:
     """Run the Flask application."""
+    # Set up logging
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    log_file = os.path.join(script_dir, "prisbevakaren.log")
+    logging.basicConfig(
+        filename=log_file,
+        level=logging.INFO,
+        format="%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s - %(message)s",
+    )
+
     app = create_app()
     print("Starting Flask prisbevakaren...")
     print("Open http://127.0.0.1:5001 in your browser")

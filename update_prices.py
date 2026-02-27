@@ -1,19 +1,32 @@
 """Cron job script to update prices for all URLs in the database."""
 
+import os
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 
 from typed_json_db import IndexedJsonDB
 
 from src.app import URL, URLS_DB_PATH
+from src.config import SlackConfig
 from src.price_scraper import PriceScraper
-from src.slack_notifier import send_error_notification, send_summary_notification
+from src.slack_notifier import Slack
 
 
 def update_all_prices() -> None:
     """Fetch and update prices for all URLs in the database."""
     print(f"[{datetime.now(timezone.utc).isoformat()}] Starting price update job...")
+
+    # Set up Slack client if configured
+    slack_client = None
+    bot_token = os.environ.get("SLACK_BOT_TOKEN")
+    channel_id = os.environ.get("SLACK_CHANNEL_ID")
+
+    if bot_token and channel_id:
+        slack_config = SlackConfig(bot_token=bot_token, channel_id=channel_id)
+        slack_client = Slack(slack_config)
+        print("Slack notifications enabled")
+    else:
+        print("Slack notifications not configured")
 
     try:
         # Initialize database and scraper (using context manager for cleanup)
@@ -38,7 +51,7 @@ def update_all_prices() -> None:
                     new_price = scraper.fetch_price(url_obj.url)
 
                     if new_price is None:
-                        print(f"  ❌ Failed to fetch price")
+                        print("  ❌ Failed to fetch price")
                         failed += 1
                         failed_urls.append(url_obj.url)
                         continue
@@ -59,7 +72,7 @@ def update_all_prices() -> None:
                         ).isoformat()
                         urls_db.update(url_obj)
                         updated += 1
-                        print(f"  ✅ Updated in database")
+                        print("  ✅ Updated in database")
                     else:
                         print(f"  ℹ️  Price unchanged: {new_price} kr")
 
@@ -67,42 +80,42 @@ def update_all_prices() -> None:
                     print(f"  ❌ Error processing URL: {e}")
                     failed += 1
                     failed_urls.append(url_obj.url)
-                    # Note: Individual error notifications are sent for immediate alerting
-                    # If this causes performance issues with many failures, consider
-                    # disabling individual notifications and relying on the summary only
-                    send_error_notification(
-                        f"Failed to process URL: {url_obj.url}", details=str(e)
-                    )
+                    if slack_client:
+                        error_msg = (
+                            f"Failed to process URL: {url_obj.url}\nError: {str(e)}"
+                        )
+                        slack_client.post_warn_to_slack(error_msg)
 
         print(f"\n{'=' * 60}")
-        print(f"Price update job completed!")
+        print("Price update job completed!")
         print(f"  Total URLs: {total}")
         print(f"  Successfully updated: {updated}")
         print(f"  Failed: {failed}")
         print(f"{'=' * 60}\n")
 
         # Send summary notification if there were any failures
-        if failed > 0:
-            details = None
+        if failed > 0 and slack_client:
+            emoji = "⚠️" if failed < total else "❌"
+            summary = f"{emoji} *Price Update Job Completed with Errors*\n\n"
+            summary += f"Total: {total}\n"
+            summary += f"Succeeded: {total - failed}\n"
+            summary += f"Failed: {failed}"
+
             if failed_urls:
-                details = "Failed URLs:\n" + "\n".join(
+                details = "\nFailed URLs:\n" + "\n".join(
                     f"• {url}" for url in failed_urls[:10]
                 )
                 if len(failed_urls) > 10:
                     details += f"\n... and {len(failed_urls) - 10} more"
+                summary += details
 
-            send_summary_notification(
-                title="Price Update Job Completed with Errors",
-                total=total,
-                succeeded=total - failed,
-                failed=failed,
-                details=details,
-            )
+            slack_client.post_message_to_slack(summary)
 
     except Exception as e:
         error_msg = f"Critical error in price update job: {e}"
         print(f"\n❌ {error_msg}\n")
-        send_error_notification("Price update job failed completely", details=str(e))
+        if slack_client:
+            slack_client.post_message_to_slack(f":x: {error_msg}")
         raise
 
 
