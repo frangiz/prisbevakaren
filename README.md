@@ -72,8 +72,8 @@ Add one of the following lines:
 
 ```bash
 # Update prices every hour
-# Note: Source webhook URL from a secure file to avoid exposing it in crontab
-0 * * * * cd /path/to/prisbevakaren && . /path/to/.env && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
+# Note: Source webhook URL from .env file in project root to avoid exposing it in crontab
+0 * * * * cd /path/to/prisbevakaren && . .env && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
 
 # Update prices every 6 hours
 0 */6 * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
@@ -84,16 +84,16 @@ Add one of the following lines:
 
 **Secure configuration for Slack notifications:**
 
-Instead of exposing the webhook URL directly in crontab, create a `.env` file:
+Instead of exposing the webhook URL directly in crontab, create a `.env` file in the project root directory:
 
 ```bash
-# /path/to/.env
+# .env (in the root directory of the project)
 export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
 ```
 
-Make sure to restrict permissions on the `.env` file:
+The `.env` file is already ignored by git, so your webhook URL will not be committed. Make sure to restrict permissions on the `.env` file:
 ```bash
-chmod 600 /path/to/.env
+chmod 600 .env
 ```
 
 ### Supported Websites
