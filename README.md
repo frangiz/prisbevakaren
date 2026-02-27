@@ -68,17 +68,32 @@ Set up a cron job to automatically update prices. Edit your crontab:
 crontab -e
 ```
 
-Add one of the following lines (including the SLACK_WEBHOOK_URL if you want notifications):
+Add one of the following lines:
 
 ```bash
-# Update prices every hour (with Slack notifications)
-0 * * * * cd /path/to/prisbevakaren && SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL" /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
+# Update prices every hour
+# Note: Source webhook URL from a secure file to avoid exposing it in crontab
+0 * * * * cd /path/to/prisbevakaren && . /path/to/.env && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
 
 # Update prices every 6 hours
 0 */6 * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
 
 # Update prices once daily at 8 AM
 0 8 * * * cd /path/to/prisbevakaren && /path/to/uv run python update_prices.py >> /tmp/prisbevakaren-cron.log 2>&1
+```
+
+**Secure configuration for Slack notifications:**
+
+Instead of exposing the webhook URL directly in crontab, create a `.env` file:
+
+```bash
+# /path/to/.env
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+```
+
+Make sure to restrict permissions on the `.env` file:
+```bash
+chmod 600 /path/to/.env
 ```
 
 ### Supported Websites

@@ -67,7 +67,9 @@ def update_all_prices() -> None:
                     print(f"  ❌ Error processing URL: {e}")
                     failed += 1
                     failed_urls.append(url_obj.url)
-                    # Send individual error notification for unexpected errors
+                    # Note: Individual error notifications are sent for immediate alerting
+                    # If this causes performance issues with many failures, consider
+                    # disabling individual notifications and relying on the summary only
                     send_error_notification(
                         f"Failed to process URL: {url_obj.url}", details=str(e)
                     )
